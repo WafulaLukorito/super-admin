@@ -97,10 +97,8 @@ object BlockerOverlayManager {
                 }
                 layout.addView(homeButton)
 
-                val space = View(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(1, 24)
-                }
-                layout.addView(space)
+                val space = View(context)
+                layout.addView(space, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 24))
 
                 val openAppButton = Button(context).apply {
                     text = "Open Super Admin (+2m Grace Challenge)"
