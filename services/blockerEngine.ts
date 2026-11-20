@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AppBlocker from '../modules/app-blocker';
 
 export interface MonitoredApp {
   id: string;
@@ -39,7 +40,7 @@ const DEFAULT_APPS: MonitoredApp[] = [
   { id: '4', name: 'Reddit', packageName: 'com.reddit.frontpage', category: 'poison', blocked: true, dailyUsageMinutes: 24 },
   { id: '5', name: 'X / Twitter', packageName: 'com.twitter.android', category: 'poison', blocked: true, dailyUsageMinutes: 19 },
   { id: '6', name: 'Facebook', packageName: 'com.facebook.katana', category: 'distraction', blocked: true, dailyUsageMinutes: 15 },
-  { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', category: 'distraction', blocked: false, dailyUsageMinutes: 8 },
+  { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', category: 'distraction', blocked: true, dailyUsageMinutes: 8 },
   { id: '8', name: 'Chrome Browser', packageName: 'com.android.chrome', category: 'work', blocked: false, dailyUsageMinutes: 30 },
 ];
 
@@ -47,36 +48,22 @@ const INITIAL_STATE: BlockerState = {
   isShieldActive: true,
   windowMinutes: 60,
   allowanceMinutes: 10,
-  currentBlockElapsedSeconds: 2640, // 44 mins into current hour
-  usedSecondsInBlock: 570,          // 9m 30s used of 10m allowance
+  currentBlockElapsedSeconds: 0,
+  usedSecondsInBlock: 0,
   graceClaimedInCurrentBlock: false,
   graceSecondsRemaining: 0,
   monitoredApps: DEFAULT_APPS,
   auditLogs: [
     {
       id: 'log-1',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'lock',
-      title: 'Allowance Nearing Zero (30s left)',
-      detail: 'Instagram & TikTok will lock in 30 seconds for the rest of this 60m window.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'reset',
+      title: 'Super Admin Shield Initialized',
+      detail: 'Native Kotlin background monitor & overlay daemon armed.',
     },
     {
       id: 'log-2',
-      timestamp: new Date(Date.now() - 1000 * 60 * 45).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'reset',
-      title: '60-Minute Block Window Started',
-      detail: '10-minute high-dopamine allowance credited.',
-    },
-    {
-      id: 'log-3',
-      timestamp: new Date(Date.now() - 1000 * 60 * 105).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'extension',
-      title: 'Friction Extension Resolved',
-      detail: '+2m grace period granted after mindful arithmetic verification.',
-    },
-    {
-      id: 'log-4',
-      timestamp: new Date(Date.now() - 1000 * 60 * 180).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'tamper_check',
       title: 'Anti-Tamper Anchor Verified',
       detail: 'System uptime clock aligned with monotonic timer. Zero drift detected.',
@@ -101,6 +88,7 @@ export class BlockerEngine {
       console.warn('Failed to load blocker state from AsyncStorage:', err);
     }
     this.isInitialized = true;
+    this.syncNative();
     return this.state;
   }
 
@@ -115,9 +103,30 @@ export class BlockerEngine {
     };
   }
 
+  private static syncNative() {
+    try {
+      if (this.state.isShieldActive) {
+        AppBlocker.startService();
+      } else {
+        AppBlocker.stopService();
+      }
+      const blockedPkgs = this.state.monitoredApps
+        .filter((a) => a.blocked)
+        .map((a) => a.packageName);
+      AppBlocker.updateRules(
+        this.state.windowMinutes,
+        this.state.allowanceMinutes,
+        blockedPkgs
+      );
+    } catch (e) {
+      console.warn('Sync with native daemon error:', e);
+    }
+  }
+
   private static notify() {
     this.listeners.forEach((l) => l(this.state));
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state)).catch(() => {});
+    this.syncNative();
   }
 
   static toggleShield(): boolean {
@@ -157,6 +166,10 @@ export class BlockerEngine {
       };
     }
 
+    try {
+      AppBlocker.claimGraceExtension();
+    } catch (e) {}
+
     this.state.graceClaimedInCurrentBlock = true;
     this.state.graceSecondsRemaining = 120; // 2 minutes
     this.addAuditLog(
@@ -183,6 +196,10 @@ export class BlockerEngine {
   }
 
   static resetBlock(): void {
+    try {
+      AppBlocker.resetBlock();
+    } catch (e) {}
+
     this.state.usedSecondsInBlock = 0;
     this.state.currentBlockElapsedSeconds = 0;
     this.state.graceClaimedInCurrentBlock = false;

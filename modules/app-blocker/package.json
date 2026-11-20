@@ -1,0 +1,7 @@
+{
+  "name": "app-blocker",
+  "version": "1.0.0",
+  "description": "Native Android background service and overlay app blocker",
+  "main": "index.ts",
+  "types": "index.ts"
+}
