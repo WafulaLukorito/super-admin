@@ -262,7 +262,12 @@ class BlockerForegroundService : Service() {
                 if (remainingSeconds <= 0) {
                     // Allowance exhausted! Trigger overlay blocker immediately
                     BlockerOverlayManager.showOverlay(this, currentPackage)
-                    updateNotification("Strict Lockdown: Hourly allowance exhausted ($currentPackage)")
+                    val windowRemainingSecs = BlockerStorage.getWindowRemainingSeconds(this)
+                    val wHours = windowRemainingSecs / 3600
+                    val wMins = (windowRemainingSecs % 3600) / 60
+                    val wSecs = windowRemainingSecs % 60
+                    val countdownStr = if (wHours > 0) "${wHours}h ${wMins}m" else "${wMins}m ${wSecs}s"
+                    updateNotification("Strict Lockdown: Unlocks in $countdownStr ($currentPackage)")
                 } else {
                     BlockerOverlayManager.hideOverlay(this)
                     val mins = remainingSeconds / 60

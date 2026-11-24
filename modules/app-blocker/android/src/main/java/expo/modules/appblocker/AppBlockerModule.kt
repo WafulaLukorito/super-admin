@@ -46,6 +46,10 @@ class AppBlockerModule : Module() {
             BlockerStorage.getRemainingSeconds(context)
         }
 
+        Function("getWindowRemainingSeconds") {
+            BlockerStorage.getWindowRemainingSeconds(context)
+        }
+
         Function("claimGraceExtension") {
             BlockerStorage.claimGraceExtension(context)
         }

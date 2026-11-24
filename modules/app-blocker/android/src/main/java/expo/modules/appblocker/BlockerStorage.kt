@@ -101,6 +101,29 @@ object BlockerStorage {
     }
 
     @Synchronized
+    fun getWindowRemainingSeconds(context: Context): Int {
+        checkAndResetWindowIfNeeded(context)
+        val prefs = getPrefs(context)
+        val windowMins = prefs.getInt(KEY_WINDOW_MINS, 60)
+        val windowDurationMillis = windowMins * 60 * 1000L
+        val currentRealtime = SystemClock.elapsedRealtime()
+        val blockStart = prefs.getLong(KEY_BLOCK_START_REALTIME, currentRealtime)
+        val elapsed = currentRealtime - blockStart
+        val remainingMillis = windowDurationMillis - elapsed
+        return if (remainingMillis > 0) (remainingMillis / 1000).toInt() else 0
+    }
+
+    @Synchronized
+    fun getAllowanceMinutes(context: Context): Int {
+        return getPrefs(context).getInt(KEY_ALLOWANCE_MINS, 10)
+    }
+
+    @Synchronized
+    fun getWindowMinutes(context: Context): Int {
+        return getPrefs(context).getInt(KEY_WINDOW_MINS, 60)
+    }
+
+    @Synchronized
     fun claimGraceExtension(context: Context): Boolean {
         checkAndResetWindowIfNeeded(context)
         val prefs = getPrefs(context)

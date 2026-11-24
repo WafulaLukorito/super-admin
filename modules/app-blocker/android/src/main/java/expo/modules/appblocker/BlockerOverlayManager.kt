@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +24,7 @@ object BlockerOverlayManager {
     @Volatile
     private var isShowing = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var countdownRunnable: Runnable? = null
 
     fun showOverlay(context: Context, blockedPackageName: String) {
         if (isShowing) return
@@ -60,7 +62,7 @@ object BlockerOverlayManager {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     setBackgroundColor(Color.parseColor("#0B0F19"))
-                    setPadding(60, 60, 60, 60)
+                    setPadding(50, 50, 50, 50)
                 }
 
                 val badge = TextView(context).apply {
@@ -79,7 +81,7 @@ object BlockerOverlayManager {
                     textSize = 22f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
-                    setPadding(0, 20, 0, 20)
+                    setPadding(0, 16, 0, 12)
                 }
                 layout.addView(title)
 
@@ -92,17 +94,72 @@ object BlockerOverlayManager {
                 }
 
                 val message = TextView(context).apply {
-                    text = "Hourly block allowance exhausted.\n$appFriendlyName is locked to protect your focus."
+                    text = "$appFriendlyName is currently locked to protect your focus."
                     setTextColor(Color.parseColor("#94A3B8"))
                     textSize = 14f
                     gravity = Gravity.CENTER
-                    setPadding(0, 0, 0, 40)
+                    setPadding(0, 0, 0, 28)
                 }
                 layout.addView(message)
 
+                // Countdown Card Container
+                val countdownCard = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    val cardBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#111827"))
+                        cornerRadius = 24f
+                        setStroke(2, Color.parseColor("#1F2937"))
+                    }
+                    background = cardBg
+                    setPadding(36, 28, 36, 28)
+                }
+
+                val countdownHeader = TextView(context).apply {
+                    text = "NEXT UNLOCK IN"
+                    setTextColor(Color.parseColor("#94A3B8"))
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    letterSpacing = 0.12f
+                    gravity = Gravity.CENTER
+                }
+                countdownCard.addView(countdownHeader)
+
+                val countdownTimer = TextView(context).apply {
+                    text = "--:--"
+                    setTextColor(Color.parseColor("#F43F5E"))
+                    textSize = 38f
+                    typeface = Typeface.MONOSPACE
+                    paint.isFakeBoldText = true
+                    gravity = Gravity.CENTER
+                    setPadding(0, 8, 0, 8)
+                }
+                countdownCard.addView(countdownTimer)
+
+                val countdownFooter = TextView(context).apply {
+                    val allowanceMins = BlockerStorage.getAllowanceMinutes(context)
+                    text = "Your ${allowanceMins}m allowance will automatically replenish when the hourly window resets."
+                    setTextColor(Color.parseColor("#64748B"))
+                    textSize = 12f
+                    gravity = Gravity.CENTER
+                }
+                countdownCard.addView(countdownFooter)
+
+                val cardParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 32)
+                }
+                layout.addView(countdownCard, cardParams)
+
                 val homeButton = Button(context).apply {
                     text = "Return to Home Screen"
-                    setBackgroundColor(Color.parseColor("#2563EB"))
+                    val btnBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#2563EB"))
+                        cornerRadius = 16f
+                    }
+                    background = btnBg
                     setTextColor(Color.WHITE)
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
@@ -111,14 +168,22 @@ object BlockerOverlayManager {
                         goToHomeScreen(context)
                     }
                 }
-                layout.addView(homeButton)
-
-                val space = View(context)
-                layout.addView(space, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 24))
+                val homeBtnParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 16)
+                }
+                layout.addView(homeButton, homeBtnParams)
 
                 val openAppButton = Button(context).apply {
                     text = "Open Super Admin (+2m Grace Challenge)"
-                    setBackgroundColor(Color.parseColor("#1E293B"))
+                    val btnBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1E293B"))
+                        cornerRadius = 16f
+                        setStroke(2, Color.parseColor("#334155"))
+                    }
+                    background = btnBg
                     setTextColor(Color.parseColor("#38BDF8"))
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
@@ -127,13 +192,44 @@ object BlockerOverlayManager {
                         openSuperAdminApp(context)
                     }
                 }
-                layout.addView(openAppButton)
+                val openBtnParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                layout.addView(openAppButton, openBtnParams)
+
+                // Start Live Countdown Loop
+                countdownRunnable = object : Runnable {
+                    override fun run() {
+                        val remainingSecs = BlockerStorage.getWindowRemainingSeconds(context)
+                        if (remainingSecs <= 0) {
+                            Log.i(TAG, "Block window reset expired while overlay was open. Auto-dismissing overlay.")
+                            hideOverlay(context)
+                            return
+                        }
+
+                        val hours = remainingSecs / 3600
+                        val mins = (remainingSecs % 3600) / 60
+                        val secs = remainingSecs % 60
+
+                        countdownTimer.text = if (hours > 0) {
+                            String.format("%02d:%02d:%02d", hours, mins, secs)
+                        } else {
+                            String.format("%02d:%02d", mins, secs)
+                        }
+
+                        mainHandler.postDelayed(this, 1000)
+                    }
+                }
+                countdownRunnable?.run()
 
                 windowManager.addView(layout, layoutParams)
                 overlayView = layout
-                Log.i(TAG, "Overlay successfully attached to WindowManager for $blockedPackageName")
+                Log.i(TAG, "Overlay successfully attached to WindowManager for $blockedPackageName with live countdown")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to attach overlay window", e)
+                countdownRunnable?.let { mainHandler.removeCallbacks(it) }
+                countdownRunnable = null
                 overlayView = null
                 isShowing = false
                 goToHomeScreen(context)
@@ -142,6 +238,11 @@ object BlockerOverlayManager {
     }
 
     fun hideOverlay(context: Context) {
+        countdownRunnable?.let {
+            mainHandler.removeCallbacks(it)
+            countdownRunnable = null
+        }
+
         if (!isShowing && overlayView == null) return
         isShowing = false
 

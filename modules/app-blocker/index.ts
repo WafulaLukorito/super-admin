@@ -14,6 +14,7 @@ interface AppBlockerNativeModule {
   stopService(): boolean;
   updateRules(windowMinutes: number, allowanceMinutes: number, blockedPackages: string[]): boolean;
   getRemainingSeconds(): number;
+  getWindowRemainingSeconds(): number;
   claimGraceExtension(): boolean;
   resetBlock(): boolean;
   getInstalledApps(): Promise<InstalledApp[]>;
@@ -45,6 +46,10 @@ export const AppBlocker = {
 
   getRemainingSeconds(): number {
     return NativeAppBlocker?.getRemainingSeconds() ?? 0;
+  },
+
+  getWindowRemainingSeconds(): number {
+    return NativeAppBlocker?.getWindowRemainingSeconds() ?? 0;
   },
 
   claimGraceExtension(): boolean {

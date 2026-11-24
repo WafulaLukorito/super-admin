@@ -38,10 +38,12 @@ export default function DashboardScreen() {
   const remainingMinutes = Math.floor(remainingAllowanceSeconds / 60);
   const remainingSecs = remainingAllowanceSeconds % 60;
 
-  const windowRemainingMinutes = Math.max(
+  const windowRemainingSecs = state.windowRemainingSeconds || Math.max(
     0,
-    state.windowMinutes - Math.floor(state.currentBlockElapsedSeconds / 60)
+    state.windowMinutes * 60 - state.currentBlockElapsedSeconds
   );
+  const windowRemainingMinutes = Math.floor(windowRemainingSecs / 60);
+  const windowRemainingSecsRemainder = windowRemainingSecs % 60;
 
   const blockedAppsCount = state.monitoredApps.filter((a) => a.blocked).length;
   const isLocked = remainingAllowanceSeconds === 0 && state.isShieldActive;
@@ -91,15 +93,21 @@ export default function DashboardScreen() {
         <View style={[styles.card, isLocked ? styles.cardLocked : null]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>CURRENT {state.windowMinutes}-MINUTE WINDOW</Text>
-            <Text style={styles.cardHeaderExtra}>Window resets in {windowRemainingMinutes}m</Text>
+            <Text style={styles.cardHeaderExtra}>
+              {isLocked
+                ? `Unlocks in ${windowRemainingMinutes}m ${windowRemainingSecsRemainder}s`
+                : `Window resets in ${windowRemainingMinutes}m`}
+            </Text>
           </View>
 
           <View style={styles.timerCircle}>
             <Text style={[styles.timerValue, isLocked ? styles.timerLockedValue : null]}>
-              {String(remainingMinutes).padStart(2, '0')}:{String(remainingSecs).padStart(2, '0')}
+              {isLocked
+                ? `${String(windowRemainingMinutes).padStart(2, '0')}:${String(windowRemainingSecsRemainder).padStart(2, '0')}`
+                : `${String(remainingMinutes).padStart(2, '0')}:${String(remainingSecs).padStart(2, '0')}`}
             </Text>
             <Text style={styles.timerLabel}>
-              {isLocked ? 'LOCKDOWN ENGAGED' : 'ALLOWANCE REMAINING'}
+              {isLocked ? 'UNLOCKS IN' : 'ALLOWANCE REMAINING'}
             </Text>
           </View>
 
@@ -147,7 +155,7 @@ export default function DashboardScreen() {
               <Text style={styles.lockNoticeTitle}>High-Dopamine Apps Blocked</Text>
               <Text style={styles.lockNoticeBody}>
                 You have reached your {state.allowanceMinutes}m allowance for this {state.windowMinutes}m block.
-                Apps will remain locked until the next interval opens.
+                Apps unlock in {windowRemainingMinutes}m {windowRemainingSecsRemainder}s when the new window starts.
               </Text>
             </View>
           </View>

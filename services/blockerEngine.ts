@@ -27,6 +27,7 @@ export interface BlockerState {
   usedSecondsInBlock: number;  // seconds consumed out of allowance
   graceClaimedInCurrentBlock: boolean; // max 1 extension per block
   graceSecondsRemaining: number;
+  windowRemainingSeconds: number; // live seconds until rolling block window resets
   monitoredApps: MonitoredApp[];
   auditLogs: AuditEvent[];
   lastUptimeAnchor: number;
@@ -53,6 +54,7 @@ const INITIAL_STATE: BlockerState = {
   usedSecondsInBlock: 0,
   graceClaimedInCurrentBlock: false,
   graceSecondsRemaining: 0,
+  windowRemainingSeconds: 3600,
   monitoredApps: DEFAULT_APPS,
   auditLogs: [
     {
@@ -98,13 +100,28 @@ export class BlockerEngine {
   static syncFromNative(): void {
     try {
       const remainingSecs = AppBlocker.getRemainingSeconds();
+      const windowRemainingSecs = AppBlocker.getWindowRemainingSeconds();
       const totalAllowanceSeconds = this.state.allowanceMinutes * 60;
+      let stateChanged = false;
+
       if (typeof remainingSecs === 'number' && remainingSecs >= 0) {
         const computedUsed = Math.max(0, totalAllowanceSeconds - remainingSecs);
         if (computedUsed !== this.state.usedSecondsInBlock) {
           this.state.usedSecondsInBlock = computedUsed;
-          this.notify();
+          stateChanged = true;
         }
+      }
+
+      if (typeof windowRemainingSecs === 'number' && windowRemainingSecs >= 0) {
+        if (windowRemainingSecs !== this.state.windowRemainingSeconds) {
+          this.state.windowRemainingSeconds = windowRemainingSecs;
+          this.state.currentBlockElapsedSeconds = Math.max(0, this.state.windowMinutes * 60 - windowRemainingSecs);
+          stateChanged = true;
+        }
+      }
+
+      if (stateChanged) {
+        this.notify();
       }
     } catch (e) {
       console.warn('Sync from native error:', e);
