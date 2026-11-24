@@ -90,8 +90,25 @@ export class BlockerEngine {
     }
     this.isInitialized = true;
     this.syncNative();
+    this.syncFromNative();
     this.loadInstalledAppsFromDevice().catch(() => {});
     return this.state;
+  }
+
+  static syncFromNative(): void {
+    try {
+      const remainingSecs = AppBlocker.getRemainingSeconds();
+      const totalAllowanceSeconds = this.state.allowanceMinutes * 60;
+      if (typeof remainingSecs === 'number' && remainingSecs >= 0) {
+        const computedUsed = Math.max(0, totalAllowanceSeconds - remainingSecs);
+        if (computedUsed !== this.state.usedSecondsInBlock) {
+          this.state.usedSecondsInBlock = computedUsed;
+          this.notify();
+        }
+      }
+    } catch (e) {
+      console.warn('Sync from native error:', e);
+    }
   }
 
   static async loadInstalledAppsFromDevice(): Promise<MonitoredApp[]> {

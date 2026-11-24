@@ -21,7 +21,13 @@ export default function DashboardScreen() {
     const unsubscribe = BlockerEngine.subscribe((newState) => {
       setState({ ...newState });
     });
-    return unsubscribe;
+    const interval = setInterval(() => {
+      BlockerEngine.syncFromNative();
+    }, 2000);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   const totalAllowanceSeconds = state.allowanceMinutes * 60;

@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -17,16 +18,22 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 object BlockerOverlayManager {
+    private const val TAG = "BlockerOverlayManager"
     private var overlayView: View? = null
+    @Volatile
     private var isShowing = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun showOverlay(context: Context, blockedPackageName: String) {
+        if (isShowing) return
+        isShowing = true
+
         mainHandler.post {
-            if (isShowing) return@post
+            if (overlayView != null) return@post
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-                // If overlay permission not granted, redirect to home screen directly
+                Log.w(TAG, "SYSTEM_ALERT_WINDOW not granted, redirecting to home screen")
+                isShowing = false
                 goToHomeScreen(context)
                 return@post
             }
@@ -76,8 +83,16 @@ object BlockerOverlayManager {
                 }
                 layout.addView(title)
 
+                val appFriendlyName = try {
+                    val pm = context.packageManager
+                    val appInfo = pm.getApplicationInfo(blockedPackageName, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    blockedPackageName
+                }
+
                 val message = TextView(context).apply {
-                    text = "Usage limit reached for this hourly block window.\n$blockedPackageName is locked to protect your focus."
+                    text = "Hourly block allowance exhausted.\n$appFriendlyName is locked to protect your focus."
                     setTextColor(Color.parseColor("#94A3B8"))
                     textSize = 14f
                     gravity = Gravity.CENTER
@@ -92,6 +107,7 @@ object BlockerOverlayManager {
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
                         hideOverlay(context)
+                        BlockerForegroundService.notifyLeavingBlockedApp()
                         goToHomeScreen(context)
                     }
                 }
@@ -107,6 +123,7 @@ object BlockerOverlayManager {
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
                         hideOverlay(context)
+                        BlockerForegroundService.notifyLeavingBlockedApp()
                         openSuperAdminApp(context)
                     }
                 }
@@ -114,25 +131,30 @@ object BlockerOverlayManager {
 
                 windowManager.addView(layout, layoutParams)
                 overlayView = layout
-                isShowing = true
+                Log.i(TAG, "Overlay successfully attached to WindowManager for $blockedPackageName")
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Failed to attach overlay window", e)
+                overlayView = null
+                isShowing = false
                 goToHomeScreen(context)
             }
         }
     }
 
     fun hideOverlay(context: Context) {
+        if (!isShowing && overlayView == null) return
+        isShowing = false
+
         mainHandler.post {
-            if (!isShowing || overlayView == null) return@post
+            val view = overlayView ?: return@post
             try {
                 val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                windowManager.removeView(overlayView)
+                windowManager.removeView(view)
+                Log.i(TAG, "Overlay removed from WindowManager")
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Error removing overlay view", e)
             } finally {
                 overlayView = null
-                isShowing = false
             }
         }
     }
@@ -145,7 +167,7 @@ object BlockerOverlayManager {
             }
             context.startActivity(homeIntent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to launch home intent", e)
         }
     }
 
@@ -160,7 +182,7 @@ object BlockerOverlayManager {
                 goToHomeScreen(context)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to open Super Admin app", e)
             goToHomeScreen(context)
         }
     }

@@ -18,6 +18,9 @@ const body = JSON.stringify({
         }
         updatedAt
         completedAt
+        enqueuedAt
+        provisioningStartedAt
+        workerStartedAt
       }
     }
   }`,

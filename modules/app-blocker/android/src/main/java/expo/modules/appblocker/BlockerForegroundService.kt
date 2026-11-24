@@ -15,6 +15,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
@@ -24,12 +25,16 @@ import java.util.concurrent.TimeUnit
 class BlockerForegroundService : Service() {
 
     companion object {
+        private const val TAG = "SuperAdminBlocker"
         private const val NOTIFICATION_ID = 9182
         private const val CHANNEL_ID = "super_admin_fgs_channel"
         private const val CHANNEL_NAME = "Super Admin Background Monitor"
 
         var isRunning = false
             private set
+
+        @Volatile
+        private var forcedClearedPackage = false
 
         fun startService(context: Context) {
             val intent = Intent(context, BlockerForegroundService::class.java)
@@ -40,10 +45,15 @@ class BlockerForegroundService : Service() {
             val intent = Intent(context, BlockerForegroundService::class.java)
             context.stopService(intent)
         }
+
+        fun notifyLeavingBlockedApp() {
+            forcedClearedPackage = true
+        }
     }
 
     private var executor: ScheduledExecutorService? = null
-    private var lastForegroundPackage: String? = null
+    private var lastEventTimestamp: Long = 0L
+    private var activeForegroundPackage: String? = null
     private var isScreenOn = true
     private var screenReceiver: BroadcastReceiver? = null
 
@@ -51,6 +61,7 @@ class BlockerForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "BlockerForegroundService onCreate")
         createNotificationChannel()
         startForegroundWithCompat("Super Admin Active: Guarding hourly time limits")
         isRunning = true
@@ -74,11 +85,13 @@ class BlockerForegroundService : Service() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
+                        Log.d(TAG, "Screen OFF -> pausing monitoring loop")
                         isScreenOn = false
                         stopMonitoringLoop()
                         BlockerOverlayManager.hideOverlay(this@BlockerForegroundService)
                     }
                     Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                        Log.d(TAG, "Screen ON / User Present -> resuming monitoring loop")
                         if (!isScreenOn) {
                             isScreenOn = true
                             startMonitoringLoop()
@@ -159,7 +172,7 @@ class BlockerForegroundService : Service() {
                     pollForegroundState()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Error in pollForegroundState", e)
             }
         }, 500, 1000, TimeUnit.MILLISECONDS)
     }
@@ -170,14 +183,71 @@ class BlockerForegroundService : Service() {
         executor = null
     }
 
+    private fun updateActiveForegroundPackage() {
+        if (forcedClearedPackage) {
+            forcedClearedPackage = false
+            activeForegroundPackage = null
+        }
+
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return
+        val now = System.currentTimeMillis()
+
+        try {
+            // Cold start or cursor reset: look back up to 10 minutes to locate current foreground activity
+            if (lastEventTimestamp == 0L || (now - lastEventTimestamp) > 15 * 60 * 1000L) {
+                lastEventTimestamp = now - 10 * 60 * 1000L
+            }
+
+            val events = usageStatsManager.queryEvents(lastEventTimestamp, now)
+            val event = UsageEvents.Event()
+            var maxEventTime = lastEventTimestamp
+
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.timeStamp > maxEventTime) {
+                    maxEventTime = event.timeStamp
+                }
+
+                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                    activeForegroundPackage = event.packageName
+                    Log.v(TAG, "Event ACTIVITY_RESUMED: ${event.packageName}")
+                }
+            }
+
+            // Keep cursor near real-time, leaving 1s buffer for slightly delayed events
+            lastEventTimestamp = maxOf(maxEventTime, now - 1000L)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying UsageEvents", e)
+        }
+
+        // Fallback: If activeForegroundPackage is still null on cold start, check recent usage stats
+        if (activeForegroundPackage == null) {
+            try {
+                val stats = usageStatsManager.queryUsageStats(
+                    UsageStatsManager.INTERVAL_DAILY,
+                    now - 5000L,
+                    now
+                )
+                val recent = stats?.maxByOrNull { it.lastTimeUsed }
+                if (recent != null && (now - recent.lastTimeUsed) < 5000L) {
+                    activeForegroundPackage = recent.packageName
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error querying UsageStats fallback", e)
+            }
+        }
+    }
+
     private fun pollForegroundState() {
+        if (!isScreenOn) return
+
         if (!BlockerStorage.isShieldEnabled(this)) {
             BlockerOverlayManager.hideOverlay(this)
             return
         }
 
-        val currentPackage = getActiveForegroundPackage()
-        lastForegroundPackage = currentPackage
+        updateActiveForegroundPackage()
+        val currentPackage = activeForegroundPackage
 
         if (currentPackage != null && currentPackage != packageName) {
             val isGuarded = BlockerStorage.isPackageGuarded(this, currentPackage)
@@ -187,60 +257,31 @@ class BlockerForegroundService : Service() {
                 BlockerStorage.recordUsage(this, 1000L)
                 val remainingSeconds = BlockerStorage.getRemainingSeconds(this)
 
+                Log.d(TAG, "Guarded app active: $currentPackage | Remaining: ${remainingSeconds}s")
+
                 if (remainingSeconds <= 0) {
                     // Allowance exhausted! Trigger overlay blocker immediately
                     BlockerOverlayManager.showOverlay(this, currentPackage)
-                    updateNotification("Strict Lockdown: Hourly allowance exhausted")
+                    updateNotification("Strict Lockdown: Hourly allowance exhausted ($currentPackage)")
                 } else {
+                    BlockerOverlayManager.hideOverlay(this)
                     val mins = remainingSeconds / 60
                     val secs = remainingSeconds % 60
-                    updateNotification("Allowance: ${mins}m ${secs}s remaining in this block")
+                    updateNotification("Allowance: ${mins}m ${secs}s remaining ($currentPackage)")
                 }
             } else {
-                // User is not in a guarded app; hide overlay if it was shown
+                // Non-guarded app (e.g., Launcher, Phone, Settings)
                 BlockerOverlayManager.hideOverlay(this)
             }
         } else {
-            // In our own app or launcher
+            // In our own app or launcher/unknown
             BlockerOverlayManager.hideOverlay(this)
         }
     }
 
-    private fun getActiveForegroundPackage(): String? {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-            ?: return null
-
-        val endTime = System.currentTimeMillis()
-        val beginTime = endTime - 4000L // Query last 4 seconds
-        val events = usageStatsManager.queryEvents(beginTime, endTime)
-        val event = UsageEvents.Event()
-
-        var latestResumedPackage: String? = null
-        var latestTimestamp = 0L
-
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.timeStamp > latestTimestamp) {
-                latestResumedPackage = event.packageName
-                latestTimestamp = event.timeStamp
-            }
-        }
-
-        if (latestResumedPackage != null) {
-            return latestResumedPackage
-        }
-
-        // Fallback query if events were empty
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            beginTime,
-            endTime
-        )
-        return stats?.maxByOrNull { it.lastTimeUsed }?.packageName
-    }
-
     override fun onDestroy() {
         super.onDestroy()
+        Log.i(TAG, "BlockerForegroundService onDestroy")
         screenReceiver?.let {
             try {
                 unregisterReceiver(it)
