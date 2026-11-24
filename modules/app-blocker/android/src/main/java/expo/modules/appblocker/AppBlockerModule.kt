@@ -53,5 +53,9 @@ class AppBlockerModule : Module() {
         Function("resetBlock") {
             BlockerStorage.resetBlock(context)
         }
+
+        AsyncFunction("getInstalledApps") {
+            InstalledAppsHelper.getInstalledApps(context)
+        }
     }
 }

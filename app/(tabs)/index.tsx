@@ -5,6 +5,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Image,
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -181,9 +182,13 @@ export default function DashboardScreen() {
               .slice(0, 5)
               .map((app) => (
                 <View key={app.id} style={styles.appRow}>
-                  <View style={styles.appIconCircle}>
-                    <Text style={styles.appIconLetter}>{app.name[0]}</Text>
-                  </View>
+                  {app.icon ? (
+                    <Image source={{ uri: app.icon }} style={styles.appIconImage} />
+                  ) : (
+                    <View style={styles.appIconCircle}>
+                      <Text style={styles.appIconLetter}>{app.name[0]}</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.appName}>{app.name}</Text>
                     <Text style={styles.appPkg}>{app.packageName}</Text>
@@ -405,6 +410,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  appIconImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
   appIconCircle: {
     width: 36,

@@ -1,5 +1,13 @@
 import { requireNativeModule } from 'expo-modules-core';
 
+export interface InstalledApp {
+  packageName: string;
+  appName: string;
+  isSystemApp: boolean;
+  category: 'poison' | 'game' | 'utility';
+  icon?: string;
+}
+
 interface AppBlockerNativeModule {
   isServiceRunning(): boolean;
   startService(): boolean;
@@ -8,6 +16,7 @@ interface AppBlockerNativeModule {
   getRemainingSeconds(): number;
   claimGraceExtension(): boolean;
   resetBlock(): boolean;
+  getInstalledApps(): Promise<InstalledApp[]>;
 }
 
 let NativeAppBlocker: AppBlockerNativeModule | null = null;
@@ -44,6 +53,16 @@ export const AppBlocker = {
 
   resetBlock(): boolean {
     return NativeAppBlocker?.resetBlock() ?? false;
+  },
+
+  async getInstalledApps(): Promise<InstalledApp[]> {
+    if (!NativeAppBlocker) return [];
+    try {
+      return await NativeAppBlocker.getInstalledApps();
+    } catch (e) {
+      console.warn('Failed to get installed apps:', e);
+      return [];
+    }
   },
 };
 

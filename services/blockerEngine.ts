@@ -5,9 +5,10 @@ export interface MonitoredApp {
   id: string;
   name: string;
   packageName: string;
-  category: 'poison' | 'distraction' | 'work';
+  category: 'poison' | 'distraction' | 'work' | 'game' | 'utility' | 'custom';
   blocked: boolean;
   dailyUsageMinutes: number;
+  icon?: string;
 }
 
 export interface AuditEvent {
@@ -89,7 +90,49 @@ export class BlockerEngine {
     }
     this.isInitialized = true;
     this.syncNative();
+    this.loadInstalledAppsFromDevice().catch(() => {});
     return this.state;
+  }
+
+  static async loadInstalledAppsFromDevice(): Promise<MonitoredApp[]> {
+    try {
+      const installed = await AppBlocker.getInstalledApps();
+      if (!installed || installed.length === 0) return this.state.monitoredApps;
+
+      const existingMap = new Map(this.state.monitoredApps.map((a) => [a.packageName, a]));
+      const mergedList: MonitoredApp[] = [];
+
+      for (const item of installed) {
+        const existing = existingMap.get(item.packageName);
+        if (existing) {
+          mergedList.push({
+            ...existing,
+            name: item.appName,
+            category: (item.category as any) || existing.category,
+            icon: item.icon || existing.icon,
+          });
+          existingMap.delete(item.packageName);
+        } else {
+          mergedList.push({
+            id: `app-${item.packageName}`,
+            name: item.appName,
+            packageName: item.packageName,
+            category: (item.category as any) || 'utility',
+            blocked: item.category === 'poison',
+            dailyUsageMinutes: 0,
+            icon: item.icon,
+          });
+        }
+      }
+
+      existingMap.forEach((app) => mergedList.push(app));
+      this.state.monitoredApps = mergedList;
+      this.notify();
+      return mergedList;
+    } catch (e) {
+      console.warn('Error loading installed apps:', e);
+      return this.state.monitoredApps;
+    }
   }
 
   static getState(): BlockerState {

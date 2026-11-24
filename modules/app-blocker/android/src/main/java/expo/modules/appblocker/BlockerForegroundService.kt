@@ -7,11 +7,14 @@ import android.app.PendingIntent
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
@@ -41,6 +44,8 @@ class BlockerForegroundService : Service() {
 
     private var executor: ScheduledExecutorService? = null
     private var lastForegroundPackage: String? = null
+    private var isScreenOn = true
+    private var screenReceiver: BroadcastReceiver? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -49,11 +54,45 @@ class BlockerForegroundService : Service() {
         createNotificationChannel()
         startForegroundWithCompat("Super Admin Active: Guarding hourly time limits")
         isRunning = true
-        startMonitoringLoop()
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        isScreenOn = powerManager?.isInteractive ?: true
+
+        registerScreenReceiver()
+
+        if (isScreenOn) {
+            startMonitoringLoop()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return START_STICKY
+    }
+
+    private fun registerScreenReceiver() {
+        screenReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        isScreenOn = false
+                        stopMonitoringLoop()
+                        BlockerOverlayManager.hideOverlay(this@BlockerForegroundService)
+                    }
+                    Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                        if (!isScreenOn) {
+                            isScreenOn = true
+                            startMonitoringLoop()
+                        }
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        registerReceiver(screenReceiver, filter)
     }
 
     private fun createNotificationChannel() {
@@ -110,15 +149,25 @@ class BlockerForegroundService : Service() {
         manager.notify(NOTIFICATION_ID, buildNotification(contentText))
     }
 
+    @Synchronized
     private fun startMonitoringLoop() {
+        if (executor != null && !executor!!.isShutdown) return
         executor = Executors.newSingleThreadScheduledExecutor()
         executor?.scheduleWithFixedDelay({
             try {
-                pollForegroundState()
+                if (isScreenOn) {
+                    pollForegroundState()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }, 1000, 1000, TimeUnit.MILLISECONDS)
+        }, 500, 1000, TimeUnit.MILLISECONDS)
+    }
+
+    @Synchronized
+    private fun stopMonitoringLoop() {
+        executor?.shutdownNow()
+        executor = null
     }
 
     private fun pollForegroundState() {
@@ -192,7 +241,13 @@ class BlockerForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        executor?.shutdownNow()
+        screenReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {}
+            screenReceiver = null
+        }
+        stopMonitoringLoop()
         BlockerOverlayManager.hideOverlay(this)
         isRunning = false
     }
