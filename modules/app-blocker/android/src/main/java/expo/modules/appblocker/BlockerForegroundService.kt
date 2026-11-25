@@ -329,6 +329,21 @@ class BlockerForegroundService : Service() {
         val currentPackage = activeForegroundPackage
 
         if (currentPackage != null && currentPackage != packageName) {
+            val strictness = BlockerStorage.getStrictnessLevel(this)
+
+            // Settings Protection (Disciplined & Fortress)
+            if (strictness != BlockerStorage.STRICTNESS_MINDFUL &&
+                (currentPackage == "com.android.settings" ||
+                 currentPackage == "com.google.android.packageinstaller" ||
+                 currentPackage == "com.android.packageinstaller")) {
+                if (BlockerStorage.isAnyAppLocked(this)) {
+                    Log.w(TAG, "Settings access blocked during active lockdown: $currentPackage")
+                    BlockerOverlayManager.hideOverlay(this)
+                    goToHomeScreen()
+                    return
+                }
+            }
+
             val isGuarded = BlockerStorage.isPackageGuarded(this, currentPackage)
 
             if (isGuarded) {
@@ -353,7 +368,12 @@ class BlockerForegroundService : Service() {
                     val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
                     updateNotification("Strict Lockdown: Unlocks in $countdownStr [$modeLabel] ($currentPackage)")
                 } else {
-                    BlockerOverlayManager.hideOverlay(this)
+                    // Breathe Before Scroll check
+                    if (BlockerStorage.shouldShowBreathe(this, currentPackage)) {
+                        BlockerOverlayManager.showBreatheOverlay(this, currentPackage)
+                    } else {
+                        BlockerOverlayManager.hideOverlay(this)
+                    }
 
                     // Heads-up pop-up warning at 2 minutes and 1 minute remaining
                     if (remainingSeconds in 61..120) {
@@ -380,6 +400,18 @@ class BlockerForegroundService : Service() {
         } else {
             // In our own app or launcher/unknown
             BlockerOverlayManager.hideOverlay(this)
+        }
+    }
+
+    private fun goToHomeScreen() {
+        try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch home intent", e)
         }
     }
 

@@ -31,6 +31,17 @@ interface AppBlockerNativeModule {
   isFrictionEnabled(): boolean;
   getFrictionType(): string;
   getMathDifficulty(): string;
+  getStrictnessLevel(): string;
+  setStrictnessLevel(level: string): boolean;
+  isBreatheEnabled(): boolean;
+  setBreatheEnabled(enabled: boolean): boolean;
+  getPositiveRedirectPackage(): string;
+  getPositiveRedirectName(): string;
+  setPositiveRedirect(packageName: string, appName: string): boolean;
+  isAccessibilityServiceActive(): boolean;
+  openAccessibilitySettings(): boolean;
+  isDeviceAdminActive(): boolean;
+  requestDeviceAdminActivation(): boolean;
   resetBlock(packageName?: string): boolean;
   getInstalledApps(): Promise<InstalledApp[]>;
 }
@@ -97,6 +108,50 @@ export const AppBlocker = {
 
   getMathDifficulty(): string {
     return NativeAppBlocker?.getMathDifficulty() ?? 'easy';
+  },
+
+  getStrictnessLevel(): string {
+    return NativeAppBlocker?.getStrictnessLevel() ?? 'mindful';
+  },
+
+  setStrictnessLevel(level: string): boolean {
+    return NativeAppBlocker?.setStrictnessLevel(level) ?? false;
+  },
+
+  isBreatheEnabled(): boolean {
+    return NativeAppBlocker?.isBreatheEnabled() ?? true;
+  },
+
+  setBreatheEnabled(enabled: boolean): boolean {
+    return NativeAppBlocker?.setBreatheEnabled(enabled) ?? false;
+  },
+
+  getPositiveRedirectPackage(): string {
+    return NativeAppBlocker?.getPositiveRedirectPackage() ?? 'com.amazon.kindle';
+  },
+
+  getPositiveRedirectName(): string {
+    return NativeAppBlocker?.getPositiveRedirectName() ?? 'Kindle';
+  },
+
+  setPositiveRedirect(packageName: string, appName: string): boolean {
+    return NativeAppBlocker?.setPositiveRedirect(packageName, appName) ?? false;
+  },
+
+  isAccessibilityServiceActive(): boolean {
+    return NativeAppBlocker?.isAccessibilityServiceActive() ?? false;
+  },
+
+  openAccessibilitySettings(): boolean {
+    return NativeAppBlocker?.openAccessibilitySettings() ?? false;
+  },
+
+  isDeviceAdminActive(): boolean {
+    return NativeAppBlocker?.isDeviceAdminActive() ?? false;
+  },
+
+  requestDeviceAdminActivation(): boolean {
+    return NativeAppBlocker?.requestDeviceAdminActivation() ?? false;
   },
 
   resetBlock(packageName?: string): boolean {

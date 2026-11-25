@@ -71,6 +71,15 @@ function generateMathProblem(diff: MathDifficulty): MathProblem {
   }
 }
 
+function generateMemorySequence(): number[] {
+  return [
+    Math.floor(Math.random() * 9) + 1,
+    Math.floor(Math.random() * 9) + 1,
+    Math.floor(Math.random() * 9) + 1,
+    Math.floor(Math.random() * 9) + 1,
+  ];
+}
+
 export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   const engineState = BlockerEngine.getState();
   const [challengeType, setChallengeType] = useState<FrictionType>(engineState.frictionType || 'math');
@@ -78,6 +87,12 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   const [currentProblem, setCurrentProblem] = useState<MathProblem>({ question: '8 + 7 = ?', answer: '15' });
   const [mathAnswer, setMathAnswer] = useState('');
   const [pledgeText, setPledgeText] = useState('');
+
+  // Reverse digit memory puzzle
+  const [memorySequence, setMemorySequence] = useState<number[]>([7, 3, 9, 4]);
+  const [memoryVisible, setMemoryVisible] = useState(true);
+  const [memoryAnswer, setMemoryAnswer] = useState('');
+  const [memoryTimer, setMemoryTimer] = useState(3);
 
   const targetPledge = 'I will close this app in 2 minutes and focus.';
 
@@ -105,6 +120,29 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
     setMathAnswer('');
   };
 
+  const handleResetMemory = () => {
+    const seq = generateMemorySequence();
+    setMemorySequence(seq);
+    setMemoryVisible(true);
+    setMemoryAnswer('');
+    setMemoryTimer(3);
+  };
+
+  useEffect(() => {
+    if (!visible || challengeType !== 'memory' || !memoryVisible) return;
+    const interval = setInterval(() => {
+      setMemoryTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setMemoryVisible(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [visible, challengeType, memoryVisible]);
+
   const handleVerify = () => {
     if (challengeType === 'math') {
       if (mathAnswer.trim() === currentProblem.answer) {
@@ -123,7 +161,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
           `"${mathAnswer.trim()}" is not correct. Solve ${currentProblem.question} to prove deliberate attention.`
         );
       }
-    } else {
+    } else if (challengeType === 'pledge') {
       if (pledgeText.trim().toLowerCase() === targetPledge.toLowerCase()) {
         const result = BlockerEngine.claimFrictionGrace();
         if (result.success) {
@@ -136,6 +174,23 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
         }
       } else {
         Alert.alert('Declaration Mismatch', 'Type the exact reflection prompt to unlock 2 minutes.');
+      }
+    } else {
+      const targetReversed = [...memorySequence].reverse().join('');
+      const cleanInput = memoryAnswer.replace(/[^0-9]/g, '');
+      if (cleanInput === targetReversed) {
+        const result = BlockerEngine.claimFrictionGrace();
+        if (result.success) {
+          Alert.alert('Grace Period Granted', result.message);
+          setMemoryAnswer('');
+          onSuccess();
+          onClose();
+        } else {
+          Alert.alert('Extension Denied', result.message);
+        }
+      } else {
+        Alert.alert('Sequence Mismatch', `The reverse sequence was ${targetReversed}. Try again with a new sequence.`);
+        handleResetMemory();
       }
     }
   };
@@ -187,6 +242,22 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
                 Mindful Pledge
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, challengeType === 'memory' && styles.activeTab]}
+              onPress={() => {
+                setChallengeType('memory');
+                BlockerEngine.setFrictionType('memory');
+                handleResetMemory();
+              }}>
+              <MaterialIcons
+                name="psychology"
+                size={16}
+                color={challengeType === 'memory' ? '#FFFFFF' : '#64748B'}
+              />
+              <Text style={[styles.tabText, challengeType === 'memory' && styles.activeTabText]}>
+                Reverse Recall
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {challengeType === 'math' ? (
@@ -223,7 +294,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
                 autoFocus
               />
             </View>
-          ) : (
+          ) : challengeType === 'pledge' ? (
             <View style={styles.challengeBox}>
               <Text style={styles.equationLabel}>Type this exact affirmation:</Text>
               <Text style={styles.pledgePrompt}>"{targetPledge}"</Text>
@@ -236,6 +307,36 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
                 autoCapitalize="none"
                 autoFocus
               />
+            </View>
+          ) : (
+            <View style={styles.challengeBox}>
+              <View style={styles.difficultyRow}>
+                <Text style={styles.difficultyLabel}>Reverse Digit Memory Challenge</Text>
+                <TouchableOpacity style={styles.refreshBtn} onPress={handleResetMemory}>
+                  <MaterialIcons name="refresh" size={16} color="#38BDF8" />
+                </TouchableOpacity>
+              </View>
+
+              {memoryVisible ? (
+                <View style={{ alignItems: 'center', marginVertical: 14 }}>
+                  <Text style={styles.equationLabel}>Memorize this 4-digit sequence:</Text>
+                  <Text style={styles.memoryDigits}>{memorySequence.join('   ')}</Text>
+                  <Text style={styles.memoryCountdownText}>Hiding in {memoryTimer}s...</Text>
+                </View>
+              ) : (
+                <View style={{ marginVertical: 8 }}>
+                  <Text style={styles.equationLabel}>Type the 4 digits in REVERSE order:</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter reversed digits (e.g. 4937)..."
+                    placeholderTextColor="#64748B"
+                    keyboardType="numeric"
+                    value={memoryAnswer}
+                    onChangeText={setMemoryAnswer}
+                    autoFocus
+                  />
+                </View>
+              )}
             </View>
           )}
 
@@ -428,5 +529,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  memoryDigits: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 6,
+    marginVertical: 12,
+  },
+  memoryCountdownText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '700',
   },
 });

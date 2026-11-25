@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppBlocker, { AppUsageStat } from '../modules/app-blocker';
 
 export type TrackingMode = 'cumulative' | 'per_app';
-export type FrictionType = 'math' | 'pledge';
+export type FrictionType = 'math' | 'pledge' | 'memory';
 export type MathDifficulty = 'easy' | 'medium' | 'hard';
+export type StrictnessLevel = 'mindful' | 'disciplined' | 'fortress';
 
 export interface MonitoredApp {
   id: string;
@@ -38,6 +39,10 @@ export interface BlockerState {
   frictionEnabled: boolean;           // true = cognitive challenge required | false = direct instant +2m extension
   frictionType: FrictionType;         // 'math' | 'pledge'
   mathDifficulty: MathDifficulty;     // 'easy' | 'medium' | 'hard'
+  strictnessLevel: StrictnessLevel;   // 'mindful' | 'disciplined' | 'fortress'
+  breatheEnabled: boolean;           // 10s micro-intervention on opening guarded apps
+  positiveRedirectPackage: string;  // Positive alternative package to open on lock
+  positiveRedirectAppName: string;  // Positive alternative app name
   windowRemainingSeconds: number; // live seconds until rolling block window resets
   monitoredApps: MonitoredApp[];
   auditLogs: AuditEvent[];
@@ -69,6 +74,10 @@ const INITIAL_STATE: BlockerState = {
   frictionEnabled: true,
   frictionType: 'math',
   mathDifficulty: 'easy',
+  strictnessLevel: 'mindful',
+  breatheEnabled: true,
+  positiveRedirectPackage: 'com.amazon.kindle',
+  positiveRedirectAppName: 'Kindle',
   windowRemainingSeconds: 3600,
   monitoredApps: DEFAULT_APPS,
   auditLogs: [
@@ -247,6 +256,12 @@ export class BlockerEngine {
         this.state.frictionType,
         this.state.mathDifficulty
       );
+      AppBlocker.setStrictnessLevel(this.state.strictnessLevel);
+      AppBlocker.setBreatheEnabled(this.state.breatheEnabled);
+      AppBlocker.setPositiveRedirect(
+        this.state.positiveRedirectPackage,
+        this.state.positiveRedirectAppName
+      );
     } catch (e) {
       console.warn('Sync with native daemon error:', e);
     }
@@ -258,7 +273,18 @@ export class BlockerEngine {
     this.syncNative();
   }
 
-  static toggleShield(): boolean {
+  static toggleShield(): { active: boolean; error?: string } {
+    if (this.state.isShieldActive && this.state.strictnessLevel !== 'mindful') {
+      const hasLockedApps = this.state.monitoredApps.some((a) => a.isLocked);
+      const isPoolLocked = this.state.trackingMode === 'cumulative' && (this.state.allowanceMinutes * 60 <= this.state.usedSecondsInBlock);
+      if (hasLockedApps || isPoolLocked) {
+        return {
+          active: true,
+          error: `${this.state.strictnessLevel.toUpperCase()} Mode Enforcement: Shield cannot be paused while a time limit lockdown is in effect. Wait for the window to unlock.`,
+        };
+      }
+    }
+
     this.state.isShieldActive = !this.state.isShieldActive;
     this.addAuditLog(
       'reset',
@@ -266,7 +292,7 @@ export class BlockerEngine {
       this.state.isShieldActive ? 'Foreground tracking & overlay blocker active' : 'Monitoring paused by admin user'
     );
     this.notify();
-    return this.state.isShieldActive;
+    return { active: this.state.isShieldActive };
   }
 
   static toggleAppBlock(appId: string): void {
@@ -356,6 +382,37 @@ export class BlockerEngine {
   static setMathDifficulty(difficulty: MathDifficulty): void {
     this.state.mathDifficulty = difficulty;
     this.addAuditLog('reset', 'Math Difficulty Updated', `Difficulty set to: ${difficulty.toUpperCase()}`);
+    this.notify();
+  }
+
+  static setStrictnessLevel(level: StrictnessLevel): void {
+    this.state.strictnessLevel = level;
+    this.addAuditLog(
+      'reset',
+      `Strictness Level Updated: ${level.toUpperCase()}`,
+      level === 'fortress'
+        ? 'Fortress Mode: 0ms Accessibility Interceptor, Device Admin anti-uninstall, and strict settings protection active.'
+        : level === 'disciplined'
+        ? 'Disciplined Mode: Settings protection and locked shield active during lockouts.'
+        : 'Mindful Mode: Gentle awareness and flexible shield controls active.'
+    );
+    this.notify();
+  }
+
+  static setBreatheEnabled(enabled: boolean): void {
+    this.state.breatheEnabled = enabled;
+    this.addAuditLog(
+      'reset',
+      enabled ? 'Breathe Before Scroll Activated' : 'Breathe Micro-Intervention Paused',
+      enabled ? '10-second breathwork circle will display when launching guarded apps.' : 'Guarded apps launch without breath micro-pause.'
+    );
+    this.notify();
+  }
+
+  static setPositiveRedirect(packageName: string, appName: string): void {
+    this.state.positiveRedirectPackage = packageName;
+    this.state.positiveRedirectAppName = appName;
+    this.addAuditLog('reset', 'Positive Redirect App Configured', `Redirect target set to ${appName} (${packageName})`);
     this.notify();
   }
 

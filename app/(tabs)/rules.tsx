@@ -12,7 +12,9 @@ import {
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode, FrictionType, MathDifficulty } from '@/services/blockerEngine';
+import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode, FrictionType, MathDifficulty, StrictnessLevel } from '@/services/blockerEngine';
+import { BreatheModal } from '@/components/BreatheModal';
+import AppBlocker from '@/modules/app-blocker';
 
 export default function RulesScreen() {
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
@@ -21,6 +23,7 @@ export default function RulesScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [newPkgName, setNewPkgName] = useState('');
   const [newAppName, setNewAppName] = useState('');
+  const [breatheModalVisible, setBreatheModalVisible] = useState(false);
 
   useEffect(() => {
     BlockerEngine.init().then((s) => setState(s));
@@ -81,6 +84,41 @@ export default function RulesScreen() {
 
   const handleSelectMathDifficulty = (diff: MathDifficulty) => {
     BlockerEngine.setMathDifficulty(diff);
+  };
+
+  const handleSelectStrictness = (level: StrictnessLevel) => {
+    BlockerEngine.setStrictnessLevel(level);
+    if (level === 'fortress') {
+      const isAccessActive = AppBlocker.isAccessibilityServiceActive();
+      const isAdminActive = AppBlocker.isDeviceAdminActive();
+      Alert.alert(
+        'Fortress Mode Activated',
+        `Maximum Hardcore Anti-Tamper Safeguards Active:\n\n• 0ms Zero-Flicker Intercept\n• Android Settings Protected during lockdowns\n• Device Administrator Mode Enabled\n\n${
+          !isAccessActive || !isAdminActive
+            ? 'Note: Visit System Permissions to verify Accessibility & Device Admin activation.'
+            : 'All hardcore protections are active.'
+        }`
+      );
+    } else if (level === 'disciplined') {
+      Alert.alert(
+        'Disciplined Mode Activated',
+        'Shield cannot be suspended during active locks, and Android Settings access is restricted during active lockdown to prevent impulsive bypass.'
+      );
+    } else {
+      Alert.alert(
+        'Mindful Mode Activated',
+        'Standard mindful usage tracking with flexible controls and gentle pause reminders.'
+      );
+    }
+  };
+
+  const handleToggleBreathe = (enabled: boolean) => {
+    BlockerEngine.setBreatheEnabled(enabled);
+  };
+
+  const handleSelectPositiveRedirect = (pkg: string, name: string) => {
+    BlockerEngine.setPositiveRedirect(pkg, name);
+    Alert.alert('Positive Alternative Configured', `Lock overlay will now offer a 1-tap shortcut to ${name}.`);
   };
 
   const handleToggleApp = (id: string) => {
@@ -279,6 +317,110 @@ export default function RulesScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Strictness Level & Anti-Tamper Protections */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSection}>STRICTNESS & ANTI-TAMPER TIER</Text>
+            <View
+              style={[
+                styles.currentBadge,
+                state.strictnessLevel === 'fortress'
+                  ? styles.modeBadgeFortress
+                  : state.strictnessLevel === 'disciplined'
+                  ? styles.modeBadgeDisciplined
+                  : styles.modeBadgeCumul,
+              ]}>
+              <Text style={styles.currentBadgeText}>
+                {state.strictnessLevel === 'fortress'
+                  ? 'FORTRESS (LVL 3)'
+                  : state.strictnessLevel === 'disciplined'
+                  ? 'DISCIPLINED (LVL 2)'
+                  : 'MINDFUL (LVL 1)'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.cardExplainer}>
+            Control the rigor of enforcement and anti-tamper barriers against impulse bypasses:
+          </Text>
+
+          {/* Level 1: Mindful */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.strictnessLevel === 'mindful' && styles.modeCardActive,
+            ]}
+            onPress={() => handleSelectStrictness('mindful')}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="self-improvement"
+                  size={20}
+                  color={state.strictnessLevel === 'mindful' ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Level 1: Mindful (Standard)</Text>
+              </View>
+              <View style={[styles.radioCircle, state.strictnessLevel === 'mindful' && styles.radioCircleActive]}>
+                {state.strictnessLevel === 'mindful' && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Flexible awareness, gentle reminders. Settings and uninstallation remain open. Shield can be paused anytime. Best for light habit building.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Level 2: Disciplined */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.strictnessLevel === 'disciplined' && styles.modeCardActive,
+            ]}
+            onPress={() => handleSelectStrictness('disciplined')}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="security"
+                  size={20}
+                  color={state.strictnessLevel === 'disciplined' ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Level 2: Disciplined (Enforced)</Text>
+              </View>
+              <View style={[styles.radioCircle, state.strictnessLevel === 'disciplined' && styles.radioCircleActive]}>
+                {state.strictnessLevel === 'disciplined' && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Shield cannot be paused while a lockdown is in effect. System Settings (com.android.settings) is guarded during lockdown to stop impulsive bypasses.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Level 3: Fortress */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.strictnessLevel === 'fortress' && styles.modeCardActiveFortress,
+            ]}
+            onPress={() => handleSelectStrictness('fortress')}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="shield"
+                  size={20}
+                  color={state.strictnessLevel === 'fortress' ? '#F43F5E' : '#94A3B8'}
+                />
+                <Text style={[styles.modeCardTitle, state.strictnessLevel === 'fortress' && { color: '#F43F5E' }]}>
+                  Level 3: Fortress (Hardcore Super Admin)
+                </Text>
+              </View>
+              <View style={[styles.radioCircle, state.strictnessLevel === 'fortress' && styles.radioCircleActiveFortress]}>
+                {state.strictnessLevel === 'fortress' && <View style={[styles.radioDot, { backgroundColor: '#F43F5E' }]} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Maximum Hardcore Mode: 0ms Instant Interception (Accessibility Service) + Device Administrator Mode (prevents uninstall/force-stop) + complete Settings lockdown.
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Grace Extension & Cognitive Friction Settings */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
@@ -373,6 +515,19 @@ export default function RulesScreen() {
                     Mindful Pledge
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.challengeTypeBtn, state.frictionType === 'memory' && styles.challengeTypeBtnActive]}
+                  onPress={() => handleSelectFrictionType('memory')}>
+                  <MaterialIcons
+                    name="psychology"
+                    size={16}
+                    color={state.frictionType === 'memory' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text style={[styles.challengeTypeBtnText, state.frictionType === 'memory' && styles.challengeTypeBtnTextActive]}>
+                    Reverse Recall
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Math Difficulty Selector */}
@@ -409,6 +564,82 @@ export default function RulesScreen() {
               )}
             </View>
           )}
+        </View>
+
+        {/* Behavioral Psychology & Positive Redirect */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSection}>BEHAVIORAL INTERVENTIONS</Text>
+            <View style={styles.currentBadge}>
+              <Text style={styles.currentBadgeText}>PSYCHOLOGY</Text>
+            </View>
+          </View>
+          <Text style={styles.cardExplainer}>
+            Science-backed cognitive friction and positive redirection tools to interrupt dopamine autopilot loops:
+          </Text>
+
+          {/* Breathe Before Scroll Switch Tile */}
+          <View style={styles.behavioralRow}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <MaterialIcons name="air" size={18} color="#10B981" />
+                <Text style={styles.behavioralTitle}>Breathe Before Scroll</Text>
+              </View>
+              <Text style={styles.behavioralDesc}>
+                Displays a gentle 10-second breathwork circle whenever opening a guarded app with remaining allowance.
+              </Text>
+            </View>
+            <Switch
+              value={state.breatheEnabled}
+              onValueChange={handleToggleBreathe}
+              trackColor={{ false: '#334155', true: '#059669' }}
+              thumbColor={state.breatheEnabled ? '#10B981' : '#64748B'}
+            />
+          </View>
+
+          {state.breatheEnabled && (
+            <TouchableOpacity
+              style={styles.previewBreatheBtn}
+              onPress={() => setBreatheModalVisible(true)}>
+              <MaterialIcons name="play-circle-filled" size={16} color="#34D399" />
+              <Text style={styles.previewBreatheText}>Preview 10s Breathwork Circle</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Positive Replacement Target */}
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.frictionSubSection}>PRODUCTIVE REPLACEMENT REDIRECT</Text>
+            <Text style={styles.behavioralDesc}>
+              When an addictive app locks, the overlay offers a one-tap shortcut to open a designated positive alternative:
+            </Text>
+
+            <View style={styles.replacementGrid}>
+              {[
+                { name: 'Amazon Kindle', pkg: 'com.amazon.kindle', icon: 'menu-book' },
+                { name: 'Google Keep Notes', pkg: 'com.google.android.keep', icon: 'edit-note' },
+                { name: 'Duolingo', pkg: 'com.duolingo', icon: 'school' },
+                { name: 'Focus Timer', pkg: 'com.jowaljones.superadmin', icon: 'timer' },
+              ].map((item) => {
+                const isSelected = state.positiveRedirectPackage === item.pkg;
+                return (
+                  <TouchableOpacity
+                    key={item.pkg}
+                    style={[styles.replacementTile, isSelected && styles.replacementTileActive]}
+                    onPress={() => handleSelectPositiveRedirect(item.pkg, item.name)}>
+                    <MaterialIcons
+                      name={item.icon as any}
+                      size={18}
+                      color={isSelected ? '#38BDF8' : '#64748B'}
+                    />
+                    <Text style={[styles.replacementTileText, isSelected && styles.replacementTileTextActive]}>
+                      {item.name}
+                    </Text>
+                    {isSelected && <MaterialIcons name="check" size={14} color="#38BDF8" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         {/* Installed Apps Manager */}
@@ -552,6 +783,13 @@ export default function RulesScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Breathe Before Scroll Practice / Preview Modal */}
+      <BreatheModal
+        visible={breatheModalVisible}
+        onClose={() => setBreatheModalVisible(false)}
+        appName="Twitter / Instagram"
+      />
     </View>
   );
 }
@@ -998,5 +1236,85 @@ const styles = StyleSheet.create({
   difficultyOptionDesc: {
     fontSize: 11,
     color: '#64748B',
+  },
+  modeBadgeFortress: {
+    borderColor: '#F43F5E',
+  },
+  modeBadgeDisciplined: {
+    borderColor: '#A855F7',
+  },
+  modeCardActiveFortress: {
+    borderColor: '#F43F5E',
+    backgroundColor: '#1E101D',
+  },
+  radioCircleActiveFortress: {
+    borderColor: '#F43F5E',
+  },
+  behavioralRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  behavioralTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  behavioralDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  previewBreatheBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#064E3B',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#059669',
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  previewBreatheText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+  replacementGrid: {
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 10,
+  },
+  replacementTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  replacementTileActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0B233E',
+  },
+  replacementTileText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginLeft: 10,
+  },
+  replacementTileTextActive: {
+    color: '#F8FAFC',
+    fontWeight: '700',
   },
 });

@@ -21,9 +21,18 @@ object BlockerStorage {
     private const val KEY_MATH_DIFFICULTY = "math_difficulty"
     private const val KEY_WARNING_2MIN = "warning_2min_shown"
     private const val KEY_WARNING_1MIN = "warning_1min_shown"
+    private const val KEY_STRICTNESS_LEVEL = "strictness_level"
+    private const val KEY_BREATHE_ENABLED = "breathe_enabled"
+    private const val KEY_POSITIVE_REDIRECT_PKG = "positive_redirect_pkg"
+    private const val KEY_POSITIVE_REDIRECT_NAME = "positive_redirect_name"
+    private const val KEY_LAST_BREATHE_PREFIX = "last_breathe_ts"
 
     const val MODE_CUMULATIVE = "cumulative"
     const val MODE_PER_APP = "per_app"
+
+    const val STRICTNESS_MINDFUL = "mindful"
+    const val STRICTNESS_DISCIPLINED = "disciplined"
+    const val STRICTNESS_FORTRESS = "fortress"
 
     private val DEFAULT_BLOCKED_PACKAGES = setOf(
         "com.instagram.android",
@@ -159,6 +168,80 @@ object BlockerStorage {
     fun mark1MinWarningShown(context: Context, packageName: String?) {
         val key = getWarning1MinKey(context, packageName)
         getPrefs(context).edit().putBoolean(key, true).apply()
+    }
+
+    @Synchronized
+    fun getStrictnessLevel(context: Context): String {
+        return getPrefs(context).getString(KEY_STRICTNESS_LEVEL, STRICTNESS_MINDFUL) ?: STRICTNESS_MINDFUL
+    }
+
+    @Synchronized
+    fun setStrictnessLevel(context: Context, level: String) {
+        val target = when (level) {
+            STRICTNESS_FORTRESS -> STRICTNESS_FORTRESS
+            STRICTNESS_DISCIPLINED -> STRICTNESS_DISCIPLINED
+            else -> STRICTNESS_MINDFUL
+        }
+        getPrefs(context).edit().putString(KEY_STRICTNESS_LEVEL, target).apply()
+    }
+
+    @Synchronized
+    fun isAnyAppLocked(context: Context): Boolean {
+        val guarded = getBlockedPackages(context)
+        if (getTrackingMode(context) == MODE_CUMULATIVE) {
+            return getRemainingSeconds(context) <= 0
+        }
+        for (pkg in guarded) {
+            if (getRemainingSeconds(context, pkg) <= 0) {
+                return true
+            }
+        }
+        return false
+    }
+
+    @Synchronized
+    fun isBreatheEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_BREATHE_ENABLED, true)
+    }
+
+    @Synchronized
+    fun setBreatheEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_BREATHE_ENABLED, enabled).apply()
+    }
+
+    @Synchronized
+    fun getPositiveRedirectPackage(context: Context): String {
+        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_PKG, "com.amazon.kindle") ?: "com.amazon.kindle"
+    }
+
+    @Synchronized
+    fun getPositiveRedirectName(context: Context): String {
+        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_NAME, "Kindle") ?: "Kindle"
+    }
+
+    @Synchronized
+    fun setPositiveRedirect(context: Context, packageName: String, appName: String) {
+        getPrefs(context).edit()
+            .putString(KEY_POSITIVE_REDIRECT_PKG, packageName)
+            .putString(KEY_POSITIVE_REDIRECT_NAME, appName)
+            .apply()
+    }
+
+    @Synchronized
+    fun shouldShowBreathe(context: Context, packageName: String): Boolean {
+        if (!isBreatheEnabled(context)) return false
+        val prefs = getPrefs(context)
+        val key = "${KEY_LAST_BREATHE_PREFIX}_$packageName"
+        val lastTs = prefs.getLong(key, 0L)
+        val now = SystemClock.elapsedRealtime()
+        return (now - lastTs) > 10 * 60 * 1000L
+    }
+
+    @Synchronized
+    fun markBreatheCompleted(context: Context, packageName: String) {
+        val prefs = getPrefs(context)
+        val key = "${KEY_LAST_BREATHE_PREFIX}_$packageName"
+        prefs.edit().putLong(key, SystemClock.elapsedRealtime()).apply()
     }
 
     @Synchronized

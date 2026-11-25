@@ -8,6 +8,7 @@ import {
   Switch,
   Image,
   Alert,
+  Linking,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { BlockerEngine, BlockerState } from '@/services/blockerEngine';
@@ -57,10 +58,14 @@ export default function DashboardScreen() {
     : lockedAppsCount > 0 && state.isShieldActive;
 
   const handleToggleShield = () => {
-    const active = BlockerEngine.toggleShield();
+    const res = BlockerEngine.toggleShield();
+    if (res.error) {
+      Alert.alert('Protection Enforced', res.error);
+      return;
+    }
     Alert.alert(
-      active ? 'Shield Engaged' : 'Shield Suspended',
-      active
+      res.active ? 'Shield Engaged' : 'Shield Suspended',
+      res.active
         ? 'Time-block rules and foreground overlay enforcement are active.'
         : 'App blocking is temporarily paused.'
     );
@@ -143,10 +148,48 @@ export default function DashboardScreen() {
               {isCumulative ? 'CUMULATIVE POOL' : 'PER-APP ISOLATED'}
             </Text>
           </View>
-          <View style={styles.summaryPresetPill}>
-            <MaterialIcons name="schedule" size={13} color="#94A3B8" />
-            <Text style={styles.summaryPresetText}>
-              {state.windowMinutes === 60 ? '1h Window (7m Limit)' : '2h Window (15m Limit)'}
+          <View
+            style={[
+              styles.summaryPill,
+              {
+                borderColor:
+                  state.strictnessLevel === 'fortress'
+                    ? '#F43F5E'
+                    : state.strictnessLevel === 'disciplined'
+                    ? '#A855F7'
+                    : '#10B981',
+              },
+            ]}>
+            <MaterialIcons
+              name={
+                state.strictnessLevel === 'fortress'
+                  ? 'shield'
+                  : state.strictnessLevel === 'disciplined'
+                  ? 'security'
+                  : 'self-improvement'
+              }
+              size={13}
+              color={
+                state.strictnessLevel === 'fortress'
+                  ? '#F43F5E'
+                  : state.strictnessLevel === 'disciplined'
+                  ? '#A855F7'
+                  : '#10B981'
+              }
+            />
+            <Text
+              style={[
+                styles.summaryPillText,
+                {
+                  color:
+                    state.strictnessLevel === 'fortress'
+                      ? '#F43F5E'
+                      : state.strictnessLevel === 'disciplined'
+                      ? '#A855F7'
+                      : '#10B981',
+                },
+              ]}>
+              {state.strictnessLevel.toUpperCase()}
             </Text>
           </View>
         </View>
@@ -257,6 +300,16 @@ export default function DashboardScreen() {
                 You have reached your {state.allowanceMinutes}m allowance for this {state.windowMinutes}m block.
                 All guarded apps unlock in {windowRemainingMinutes}m {windowRemainingSecsRemainder}s.
               </Text>
+              <TouchableOpacity
+                style={styles.positiveRedirectDashBtn}
+                onPress={() => {
+                  Linking.openURL(`market://details?id=${state.positiveRedirectPackage}`).catch(() => {});
+                }}>
+                <MaterialIcons name="menu-book" size={15} color="#34D399" />
+                <Text style={styles.positiveRedirectDashText}>
+                  Read / Learn: Open {state.positiveRedirectAppName}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         ) : null}
@@ -787,5 +840,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  positiveRedirectDashBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#064E3B',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  positiveRedirectDashText: {
+    color: '#34D399',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

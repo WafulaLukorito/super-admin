@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PermissionsService } from '@/services/permissionsService';
+import AppBlocker from '@/modules/app-blocker';
 
 export default function PermissionsScreen() {
   const handleOpenUsage = () => {
@@ -25,6 +26,14 @@ export default function PermissionsScreen() {
 
   const handleOpenNotifications = () => {
     PermissionsService.openNotificationSettings();
+  };
+
+  const handleOpenAccessibility = () => {
+    AppBlocker.openAccessibilitySettings();
+  };
+
+  const handleRequestDeviceAdmin = () => {
+    AppBlocker.requestDeviceAdminActivation();
   };
 
   return (
@@ -111,6 +120,44 @@ export default function PermissionsScreen() {
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenNotifications}>
             <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Configure App Notifications</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Permission 5: Accessibility Service (Fortress Tier) */}
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={[styles.iconCircle, { backgroundColor: '#1E101D' }]}>
+              <MaterialIcons name="bolt" size={20} color="#F43F5E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.permName}>5. 0ms Accessibility Interceptor (Fortress)</Text>
+              <Text style={styles.permDesc}>
+                Enables zero-latency instant overlay blocking (catches app launches in 0ms with zero flicker).
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#E11D48' }]} onPress={handleOpenAccessibility}>
+            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Open Accessibility Settings</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Permission 6: Device Administrator (Fortress Tier) */}
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={[styles.iconCircle, { backgroundColor: '#1E101D' }]}>
+              <MaterialIcons name="admin-panel-settings" size={20} color="#F43F5E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.permName}>6. Device Administrator (Fortress)</Text>
+              <Text style={styles.permDesc}>
+                Prevents uninstalling or force-stopping Super Admin while active block rules or lockdowns are in effect.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#BE123C' }]} onPress={handleRequestDeviceAdmin}>
+            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Activate Device Administrator</Text>
           </TouchableOpacity>
         </View>
 

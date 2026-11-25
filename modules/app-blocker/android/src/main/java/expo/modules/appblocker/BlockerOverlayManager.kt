@@ -184,9 +184,38 @@ object BlockerOverlayManager {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 16)
+                    setMargins(0, 0, 0, 14)
                 }
                 layout.addView(homeButton, homeBtnParams)
+
+                val positivePkg = BlockerStorage.getPositiveRedirectPackage(context)
+                val positiveName = BlockerStorage.getPositiveRedirectName(context)
+
+                val positiveButton = Button(context).apply {
+                    text = "🌱 Positive Alternative: Open $positiveName"
+                    val btnBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#064E3B"))
+                        cornerRadius = 16f
+                        setStroke(2, Color.parseColor("#059669"))
+                    }
+                    background = btnBg
+                    setTextColor(Color.parseColor("#34D399"))
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(30, 20, 30, 20)
+                    setOnClickListener {
+                        hideOverlay(context)
+                        BlockerForegroundService.notifyLeavingBlockedApp()
+                        launchPackage(context, positivePkg)
+                    }
+                }
+                val positiveBtnParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 14)
+                }
+                layout.addView(positiveButton, positiveBtnParams)
 
                 val openAppButton = Button(context).apply {
                     text = "Open Super Admin (+2m Grace Challenge)"
@@ -297,6 +326,222 @@ object BlockerOverlayManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open Super Admin app", e)
             goToHomeScreen(context)
+        }
+    }
+
+    private fun launchPackage(context: Context, targetPackage: String) {
+        try {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPackage)?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+            }
+            if (launchIntent != null) {
+                context.startActivity(launchIntent)
+            } else {
+                val storeIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=$targetPackage")).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(storeIntent)
+            }
+        } catch (e: Exception) {
+            goToHomeScreen(context)
+        }
+    }
+
+    fun showBreatheOverlay(context: Context, guardedPackageName: String) {
+        if (isShowing) return
+        isShowing = true
+
+        mainHandler.post {
+            if (overlayView != null) return@post
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                isShowing = false
+                return@post
+            }
+
+            try {
+                val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                val layoutParams = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    else
+                        WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.CENTER
+                }
+
+                val layout = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setBackgroundColor(Color.parseColor("#090D16"))
+                    setPadding(50, 50, 50, 50)
+                }
+
+                val badge = TextView(context).apply {
+                    text = "MINDFUL PAUSE • BREATHE BEFORE SCROLL"
+                    setTextColor(Color.parseColor("#10B981"))
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    letterSpacing = 0.14f
+                    gravity = Gravity.CENTER
+                }
+                layout.addView(badge)
+
+                val appFriendlyName = try {
+                    val pm = context.packageManager
+                    val appInfo = pm.getApplicationInfo(guardedPackageName, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    guardedPackageName
+                }
+
+                val title = TextView(context).apply {
+                    text = "Opening $appFriendlyName?"
+                    setTextColor(Color.WHITE)
+                    textSize = 22f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    setPadding(0, 14, 0, 8)
+                }
+                layout.addView(title)
+
+                val prompt = TextView(context).apply {
+                    text = "Take a breath. 80% of app opens are compulsive autopilot reflex.\nAre you opening $appFriendlyName with intention?"
+                    setTextColor(Color.parseColor("#94A3B8"))
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setPadding(0, 0, 0, 24)
+                }
+                layout.addView(prompt)
+
+                // Breath Circle
+                val circle = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    val circleBg = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#064E3B"))
+                        setStroke(4, Color.parseColor("#10B981"))
+                    }
+                    background = circleBg
+                }
+                val circleParams = LinearLayout.LayoutParams(240, 240).apply {
+                    setMargins(0, 0, 0, 30)
+                }
+
+                val breathPhase = TextView(context).apply {
+                    text = "Inhale..."
+                    setTextColor(Color.parseColor("#A7F3D0"))
+                    textSize = 14f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                }
+                circle.addView(breathPhase)
+
+                val breathCountdown = TextView(context).apply {
+                    text = "10"
+                    setTextColor(Color.WHITE)
+                    textSize = 40f
+                    typeface = Typeface.MONOSPACE
+                    paint.isFakeBoldText = true
+                    gravity = Gravity.CENTER
+                }
+                circle.addView(breathCountdown)
+
+                layout.addView(circle, circleParams)
+
+                // Close App Button (Behavioral Win)
+                val closeAppButton = Button(context).apply {
+                    text = "Close $appFriendlyName (Behavioral Win)"
+                    val btnBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#059669"))
+                        cornerRadius = 16f
+                    }
+                    background = btnBg
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(30, 20, 30, 20)
+                    setOnClickListener {
+                        hideOverlay(context)
+                        BlockerForegroundService.notifyLeavingBlockedApp()
+                        goToHomeScreen(context)
+                    }
+                }
+                val closeBtnParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 14)
+                }
+                layout.addView(closeAppButton, closeBtnParams)
+
+                // Continue Button (Enabled after countdown)
+                val proceedButton = Button(context).apply {
+                    text = "Pause & Proceed (Wait 10s...)"
+                    val btnBg = GradientDrawable().apply {
+                        setColor(Color.parseColor("#1E293B"))
+                        cornerRadius = 16f
+                        setStroke(2, Color.parseColor("#334155"))
+                    }
+                    background = btnBg
+                    setTextColor(Color.parseColor("#64748B"))
+                    isEnabled = false
+                    setPadding(30, 20, 30, 20)
+                    setOnClickListener {
+                        BlockerStorage.markBreatheCompleted(context, guardedPackageName)
+                        hideOverlay(context)
+                    }
+                }
+                val proceedParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                layout.addView(proceedButton, proceedParams)
+
+                var secondsLeft = 10
+                countdownRunnable = object : Runnable {
+                    override fun run() {
+                        secondsLeft--
+                        if (secondsLeft <= 0) {
+                            breathCountdown.text = "✓"
+                            breathPhase.text = "Deliberate"
+                            proceedButton.isEnabled = true
+                            proceedButton.text = "Continue to $appFriendlyName"
+                            proceedButton.setTextColor(Color.parseColor("#38BDF8"))
+                            val activeBg = GradientDrawable().apply {
+                                setColor(Color.parseColor("#0B233E"))
+                                cornerRadius = 16f
+                                setStroke(2, Color.parseColor("#0284C7"))
+                            }
+                            proceedButton.background = activeBg
+                            return
+                        }
+
+                        breathCountdown.text = secondsLeft.toString()
+                        when (secondsLeft) {
+                            in 7..10 -> breathPhase.text = "Inhale slowly..."
+                            in 5..6 -> breathPhase.text = "Hold breath..."
+                            else -> breathPhase.text = "Exhale release..."
+                        }
+
+                        mainHandler.postDelayed(this, 1000)
+                    }
+                }
+                mainHandler.postDelayed(countdownRunnable!!, 1000)
+
+                windowManager.addView(layout, layoutParams)
+                overlayView = layout
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to attach breathe overlay", e)
+                hideOverlay(context)
+            }
         }
     }
 }
