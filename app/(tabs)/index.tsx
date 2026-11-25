@@ -5,6 +5,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Switch,
   Image,
   Alert,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { FrictionChallengeModal } from '@/components/FrictionChallengeModal';
 export default function DashboardScreen() {
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
   const [modalVisible, setModalVisible] = useState(false);
+  const [dashboardFilter, setDashboardFilter] = useState<'all' | 'timed'>('all');
 
   useEffect(() => {
     BlockerEngine.init().then((s) => setState(s));
@@ -45,9 +47,9 @@ export default function DashboardScreen() {
   const windowRemainingMinutes = Math.floor(windowRemainingSecs / 60);
   const windowRemainingSecsRemainder = windowRemainingSecs % 60;
 
-  const blockedApps = state.monitoredApps.filter((a) => a.blocked);
-  const blockedAppsCount = blockedApps.length;
-  const lockedAppsCount = blockedApps.filter((a) => a.isLocked).length;
+  const timedApps = state.monitoredApps.filter((a) => a.blocked);
+  const timedAppsCount = timedApps.length;
+  const lockedAppsCount = timedApps.filter((a) => a.isLocked).length;
 
   const isCumulative = state.trackingMode === 'cumulative';
   const isLocked = isCumulative
@@ -63,6 +65,22 @@ export default function DashboardScreen() {
         : 'App blocking is temporarily paused.'
     );
   };
+
+  const handleToggleApp = (id: string) => {
+    const app = state.monitoredApps.find((a) => a.id === id);
+    BlockerEngine.toggleAppBlock(id);
+    if (app) {
+      const willBeTimed = !app.blocked;
+      Alert.alert(
+        willBeTimed ? 'Timing Enabled' : 'Timing Disabled',
+        willBeTimed
+          ? `${app.name} is now included in your ${state.allowanceMinutes}m timer.`
+          : `Timing disabled for ${app.name}. You can use this app without time restrictions.`
+      );
+    }
+  };
+
+  const displayedApps = dashboardFilter === 'timed' ? timedApps : state.monitoredApps;
 
   return (
     <View style={styles.container}>
@@ -121,12 +139,12 @@ export default function DashboardScreen() {
             <Text style={styles.cardTitle}>
               {isCumulative
                 ? `CURRENT ${state.windowMinutes}-MINUTE WINDOW`
-                : `PER-APP STATUS (${blockedAppsCount} GUARDED)`}
+                : `PER-APP STATUS (${timedAppsCount} TIMED)`}
             </Text>
             <Text style={styles.cardHeaderExtra}>
               {isCumulative
                 ? (isLocked ? `Unlocks in ${windowRemainingMinutes}m ${windowRemainingSecsRemainder}s` : `Resets in ${windowRemainingMinutes}m`)
-                : `${lockedAppsCount} of ${blockedAppsCount} apps locked`}
+                : `${lockedAppsCount} of ${timedAppsCount} apps locked`}
             </Text>
           </View>
 
@@ -203,7 +221,7 @@ export default function DashboardScreen() {
                   <Text style={styles.statLabel}>Rolling Window</Text>
                 </View>
                 <View style={styles.statCol}>
-                  <Text style={styles.statNumber}>{blockedAppsCount - lockedAppsCount}</Text>
+                  <Text style={styles.statNumber}>{timedAppsCount - lockedAppsCount}</Text>
                   <Text style={styles.statLabel}>Available</Text>
                 </View>
               </View>
@@ -251,24 +269,42 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Guarded Apps Overview */}
+        {/* App Timing Controls Card with Toggle after each App */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>
-              GUARDED APPLICATIONS ({blockedAppsCount})
-            </Text>
-            {!isCumulative && (
-              <Text style={styles.cardHeaderExtra}>Independent Progress</Text>
-            )}
+            <View>
+              <Text style={styles.cardTitle}>APP TIMING CONTROLS</Text>
+              <Text style={styles.cardSubtitleText}>
+                Toggle ON to include in timer. Toggle OFF to disable timing.
+              </Text>
+            </View>
+            <View style={styles.filterPillGroup}>
+              <TouchableOpacity
+                style={[styles.smallFilterPill, dashboardFilter === 'all' && styles.smallFilterPillActive]}
+                onPress={() => setDashboardFilter('all')}>
+                <Text style={[styles.smallFilterText, dashboardFilter === 'all' && styles.smallFilterTextActive]}>
+                  All ({state.monitoredApps.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.smallFilterPill, dashboardFilter === 'timed' && styles.smallFilterPillActive]}
+                onPress={() => setDashboardFilter('timed')}>
+                <Text style={[styles.smallFilterText, dashboardFilter === 'timed' && styles.smallFilterTextActive]}>
+                  Timed ({timedAppsCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
+
           <View style={styles.appList}>
-            {blockedApps.map((app) => {
+            {displayedApps.map((app) => {
+              const isTimed = app.blocked;
               const appRem = app.remainingSeconds ?? totalAllowanceSeconds;
               const appRemMins = Math.floor(appRem / 60);
               const appRemSecs = appRem % 60;
               const appWindowRem = app.windowRemainingSeconds ?? 0;
               const appWinMins = Math.floor(appWindowRem / 60);
-              const appIsLocked = app.isLocked ?? (appRem <= 0);
+              const appIsLocked = isTimed && (app.isLocked ?? (appRem <= 0));
 
               const percentUsed = Math.min(
                 100,
@@ -276,40 +312,53 @@ export default function DashboardScreen() {
               );
 
               return (
-                <View key={app.id} style={styles.appCardRow}>
+                <View key={app.id} style={[styles.appCardRow, !isTimed && styles.appCardRowDisabled]}>
                   <View style={styles.appRowTop}>
                     {app.icon ? (
-                      <Image source={{ uri: app.icon }} style={styles.appIconImage} />
+                      <Image source={{ uri: app.icon }} style={[styles.appIconImage, !isTimed && styles.appIconMuted]} />
                     ) : (
-                      <View style={styles.appIconCircle}>
-                        <Text style={styles.appIconLetter}>{app.name[0]}</Text>
+                      <View style={[styles.appIconCircle, !isTimed && styles.appIconCircleMuted]}>
+                        <Text style={[styles.appIconLetter, !isTimed && styles.appIconLetterMuted]}>{app.name[0]}</Text>
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.appName}>{app.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.appName, !isTimed && styles.appNameMuted]}>{app.name}</Text>
+                        {/* Status Badge */}
+                        {isTimed ? (
+                          !isCumulative ? (
+                            <View style={[styles.appStatusBadge, appIsLocked ? styles.appStatusBadgeLocked : styles.appStatusBadgeOpen]}>
+                              <Text style={styles.appStatusText}>
+                                {appIsLocked ? `LOCKED • ${appWinMins}m` : `${appRemMins}m ${appRemSecs}s left`}
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={styles.appStatusBadgeTimed}>
+                              <Text style={styles.appStatusTimedText}>TIMED</Text>
+                            </View>
+                          )
+                        ) : (
+                          <View style={styles.appStatusBadgeExempt}>
+                            <Text style={styles.appStatusExemptText}>TIMING OFF</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.appPkg} numberOfLines={1}>{app.packageName}</Text>
                     </View>
 
-                    {/* Badge */}
-                    {!isCumulative ? (
-                      <View style={[styles.appStatusBadge, appIsLocked ? styles.appStatusBadgeLocked : styles.appStatusBadgeOpen]}>
-                        <Text style={styles.appStatusText}>
-                          {appIsLocked
-                            ? `LOCKED • ${appWinMins}m`
-                            : `${appRemMins}m ${appRemSecs}s left`}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryText}>
-                          {app.category.toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
+                    {/* Toggle Switch */}
+                    <View style={styles.toggleCell}>
+                      <Switch
+                        value={isTimed}
+                        onValueChange={() => handleToggleApp(app.id)}
+                        trackColor={{ false: '#334155', true: '#0284C7' }}
+                        thumbColor={isTimed ? '#38BDF8' : '#64748B'}
+                      />
+                    </View>
                   </View>
 
-                  {/* Per-App Individual Progress Bar */}
-                  {!isCumulative && (
+                  {/* Per-App Individual Progress Bar if Timed */}
+                  {!isCumulative && isTimed && (
                     <View style={styles.miniProgressContainer}>
                       <View
                         style={[
@@ -326,8 +375,8 @@ export default function DashboardScreen() {
               );
             })}
 
-            {blockedAppsCount === 0 && (
-              <Text style={styles.emptyText}>No applications currently guarded. Go to Rules tab to select apps.</Text>
+            {displayedApps.length === 0 && (
+              <Text style={styles.emptyText}>No applications in this view.</Text>
             )}
           </View>
         </View>
@@ -462,10 +511,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.2,
   },
+  cardSubtitleText: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
   cardHeaderExtra: {
     color: '#38BDF8',
     fontSize: 12,
     fontWeight: '600',
+  },
+  filterPillGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  smallFilterPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  smallFilterPillActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#38BDF8',
+  },
+  smallFilterText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  smallFilterTextActive: {
+    color: '#FFFFFF',
   },
   timerCircle: {
     alignItems: 'center',
@@ -577,7 +655,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   appList: {
-    gap: 12,
+    gap: 10,
   },
   appCardRow: {
     backgroundColor: '#0F172A',
@@ -586,15 +664,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1E293B',
   },
+  appCardRowDisabled: {
+    opacity: 0.75,
+    backgroundColor: '#090D16',
+  },
   appRowTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   appIconImage: {
     width: 36,
     height: 36,
     borderRadius: 8,
+  },
+  appIconMuted: {
+    opacity: 0.5,
   },
   appIconCircle: {
     width: 36,
@@ -604,24 +689,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  appIconCircleMuted: {
+    backgroundColor: '#111827',
+  },
   appIconLetter: {
     color: '#38BDF8',
     fontWeight: '800',
     fontSize: 15,
   },
+  appIconLetterMuted: {
+    color: '#64748B',
+  },
   appName: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#F8FAFC',
+  },
+  appNameMuted: {
+    color: '#94A3B8',
   },
   appPkg: {
     fontSize: 10,
     color: '#64748B',
   },
+  toggleCell: {
+    marginLeft: 8,
+  },
   appStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
   appStatusBadgeOpen: {
     backgroundColor: '#064E3B',
@@ -629,22 +726,31 @@ const styles = StyleSheet.create({
   appStatusBadgeLocked: {
     backgroundColor: '#7F1D1D',
   },
+  appStatusBadgeTimed: {
+    backgroundColor: '#0C4A6E',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  appStatusBadgeExempt: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   appStatusText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
   },
-  categoryBadge: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#334155',
+  appStatusTimedText: {
+    color: '#38BDF8',
+    fontSize: 9,
+    fontWeight: '800',
   },
-  categoryText: {
+  appStatusExemptText: {
     color: '#94A3B8',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
   },
   miniProgressContainer: {
@@ -652,7 +758,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E293B',
     borderRadius: 2,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 8,
   },
   miniProgressBar: {
     height: '100%',

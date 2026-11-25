@@ -66,7 +66,17 @@ export default function RulesScreen() {
   };
 
   const handleToggleApp = (id: string) => {
+    const app = state.monitoredApps.find((a) => a.id === id);
     BlockerEngine.toggleAppBlock(id);
+    if (app) {
+      const willBeTimed = !app.blocked;
+      Alert.alert(
+        willBeTimed ? 'Timing Enabled' : 'Timing Disabled',
+        willBeTimed
+          ? `${app.name} is now included in your ${state.allowanceMinutes}m timer.`
+          : `Timing disabled for ${app.name}. It will not be timed or locked.`
+      );
+    }
   };
 
   const handleAddCustomApp = () => {
@@ -331,11 +341,21 @@ export default function RulesScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={styles.appName} numberOfLines={1}>{app.name}</Text>
-                    {state.trackingMode === 'per_app' && app.blocked && (
-                      <View style={[styles.perAppBadge, app.isLocked ? styles.perAppBadgeLocked : styles.perAppBadgeActive]}>
-                        <Text style={styles.perAppBadgeText}>
-                          {app.isLocked ? 'LOCKED' : `${Math.floor((app.remainingSeconds ?? (state.allowanceMinutes * 60)) / 60)}m left`}
-                        </Text>
+                    {app.blocked ? (
+                      state.trackingMode === 'per_app' ? (
+                        <View style={[styles.perAppBadge, app.isLocked ? styles.perAppBadgeLocked : styles.perAppBadgeActive]}>
+                          <Text style={styles.perAppBadgeText}>
+                            {app.isLocked ? 'LOCKED' : `${Math.floor((app.remainingSeconds ?? (state.allowanceMinutes * 60)) / 60)}m left`}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.appStatusBadgeTimed}>
+                          <Text style={styles.appStatusTimedText}>TIMED</Text>
+                        </View>
+                      )
+                    ) : (
+                      <View style={styles.appStatusBadgeExempt}>
+                        <Text style={styles.appStatusExemptText}>TIMING OFF</Text>
                       </View>
                     )}
                   </View>
@@ -345,7 +365,7 @@ export default function RulesScreen() {
                   value={app.blocked}
                   onValueChange={() => handleToggleApp(app.id)}
                   trackColor={{ false: '#334155', true: '#0284C7' }}
-                  thumbColor={app.blocked ? '#38BDF8' : '#94A3B8'}
+                  thumbColor={app.blocked ? '#38BDF8' : '#64748B'}
                 />
               </View>
             ))}
@@ -694,6 +714,28 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  appStatusBadgeTimed: {
+    backgroundColor: '#0C4A6E',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  appStatusTimedText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#38BDF8',
+  },
+  appStatusBadgeExempt: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  appStatusExemptText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
   },
   emptyText: {
     color: '#64748B',
