@@ -28,9 +28,9 @@ class BlockerForegroundService : Service() {
         private const val TAG = "SuperAdminBlocker"
         private const val NOTIFICATION_ID = 9182
         private const val CHANNEL_ID = "super_admin_fgs_channel"
-        private const val CHANNEL_NAME = "Super Admin Background Monitor"
+        private const val CHANNEL_NAME = "Hourglass Background Monitor"
         private const val WARNING_CHANNEL_ID = "super_admin_heads_up_channel"
-        private const val WARNING_CHANNEL_NAME = "Super Admin Warning Alerts"
+        private const val WARNING_CHANNEL_NAME = "Hourglass Warning Alerts"
         private const val WARNING_NOTIFICATION_ID = 9183
 
         var isRunning = false
@@ -66,7 +66,7 @@ class BlockerForegroundService : Service() {
         super.onCreate()
         Log.i(TAG, "BlockerForegroundService onCreate")
         createNotificationChannel()
-        startForegroundWithCompat("Super Admin Active: Guarding time limits")
+        startForegroundWithCompat("Hourglass Active: Guarding time limits")
         isRunning = true
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -217,7 +217,7 @@ class BlockerForegroundService : Service() {
         } else null
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Super Admin Shield")
+            .setContentTitle("Hourglass Shield")
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .setOngoing(true)

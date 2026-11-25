@@ -729,7 +729,7 @@ export default function RulesScreen() {
                   color={state.strictnessLevel === 'fortress' ? '#F43F5E' : '#94A3B8'}
                 />
                 <Text style={[styles.modeCardTitle, state.strictnessLevel === 'fortress' && { color: '#F43F5E' }]}>
-                  Level 3: Fortress (Hardcore Super Admin)
+                  Level 3: Fortress (Hardcore Hourglass)
                 </Text>
               </View>
               <View style={[styles.radioCircle, state.strictnessLevel === 'fortress' && styles.radioCircleActiveFortress]}>

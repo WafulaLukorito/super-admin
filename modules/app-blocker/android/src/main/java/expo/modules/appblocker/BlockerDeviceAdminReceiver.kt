@@ -13,13 +13,13 @@ class BlockerDeviceAdminReceiver : DeviceAdminReceiver() {
 
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
-        Log.i(TAG, "Device Administrator enabled for Super Admin")
-        Toast.makeText(context, "Super Admin Fortress: Device Administrator Active", Toast.LENGTH_SHORT).show()
+        Log.i(TAG, "Device Administrator enabled for Hourglass")
+        Toast.makeText(context, "Hourglass Fortress: Device Administrator Active", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDisabled(context: Context, intent: Intent) {
         super.onDisabled(context, intent)
-        Log.i(TAG, "Device Administrator disabled for Super Admin")
+        Log.i(TAG, "Device Administrator disabled for Hourglass")
         Toast.makeText(context, "Device Administrator Deactivated", Toast.LENGTH_SHORT).show()
     }
 }

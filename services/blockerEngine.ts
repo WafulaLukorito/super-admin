@@ -177,7 +177,7 @@ const INITIAL_STATE: BlockerState = {
       id: 'log-1',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'reset',
-      title: 'Super Admin Shield Initialized',
+      title: 'Hourglass Shield Initialized',
       detail: 'Window presets (1h/7m, 2h/15m) & tracking modes (Cumulative/Per-App) loaded.',
     },
     {

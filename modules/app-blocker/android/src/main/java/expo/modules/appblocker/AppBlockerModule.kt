@@ -156,7 +156,7 @@ class AppBlockerModule : Module() {
                 putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, comp)
                 putExtra(
                     DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                    "Super Admin Fortress Mode: Prevents impulsive uninstallation or force-stopping during active blocks."
+                    "Hourglass Fortress Mode: Prevents impulsive uninstallation or force-stopping during active blocks."
                 )
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }

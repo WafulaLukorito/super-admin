@@ -25,7 +25,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val pkgName = event.packageName?.toString() ?: return
-        if (pkgName == packageName) return // Ignore Super Admin app itself
+        if (pkgName == packageName) return // Ignore Hourglass app itself
 
         val strictness = BlockerStorage.getStrictnessLevel(this)
 

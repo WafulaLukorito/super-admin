@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Zero-latency instant app restriction overlay and anti-tamper protection for Super Admin.</string>
+    <string name="app_name">Hourglass</string>
+    <string name="accessibility_service_description">Zero-latency instant app restriction overlay and anti-tamper protection for Hourglass.</string>
 </resources>

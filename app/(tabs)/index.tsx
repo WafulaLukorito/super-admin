@@ -115,8 +115,8 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.appTitle}>SUPER ADMIN</Text>
-            <Text style={styles.appSubtitle}>Hourly Interval App Blocker</Text>
+            <Text style={styles.appTitle}>HOURGLASS</Text>
+            <Text style={styles.appSubtitle}>Rolling Interval Time Blocker</Text>
           </View>
           <TouchableOpacity
             style={[styles.shieldStatusBadge, state.isShieldActive ? styles.shieldActive : styles.shieldPaused]}

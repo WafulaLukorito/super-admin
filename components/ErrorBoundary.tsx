@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <ScrollView contentContainerStyle={styles.content}>
-            <Text style={styles.title}>Super Admin</Text>
+            <Text style={styles.title}>Hourglass</Text>
             <Text style={styles.subtitle}>An unexpected error occurred while rendering</Text>
             
             <View style={styles.errorBox}>

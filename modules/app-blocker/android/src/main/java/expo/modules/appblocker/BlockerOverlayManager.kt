@@ -78,13 +78,13 @@ object BlockerOverlayManager {
                         text = "RESTFUL SLEEP SHIELD • BEDTIME LOCKDOWN"
                         setTextColor(Color.parseColor("#818CF8"))
                     } else if (activeProfileName != null) {
-                        text = "SUPER ADMIN SHIELD • ${activeProfileName.uppercase()}"
+                        text = "HOURGLASS SHIELD • ${activeProfileName.uppercase()}"
                         setTextColor(Color.parseColor("#F59E0B"))
                     } else if (isPerApp) {
-                        text = "SUPER ADMIN SHIELD • ISOLATED APP LOCK"
+                        text = "HOURGLASS SHIELD • ISOLATED APP LOCK"
                         setTextColor(Color.parseColor("#EF4444"))
                     } else {
-                        text = "SUPER ADMIN SHIELD • SHARED POOL"
+                        text = "HOURGLASS SHIELD • SHARED POOL"
                         setTextColor(Color.parseColor("#EF4444"))
                     }
                     textSize = 11f
@@ -236,7 +236,7 @@ object BlockerOverlayManager {
                 layout.addView(positiveButton, positiveBtnParams)
 
                 val openAppButton = Button(context).apply {
-                    text = if (isBedtime) "🌙 Bedtime Active: Extensions Locked" else "Open Super Admin (+2m Grace Challenge)"
+                    text = if (isBedtime) "🌙 Bedtime Active: Extensions Locked" else "Open Hourglass (+2m Grace Challenge)"
                     val btnBg = GradientDrawable().apply {
                         setColor(if (isBedtime) Color.parseColor("#0F172A") else Color.parseColor("#1E293B"))
                         cornerRadius = 16f
@@ -342,7 +342,7 @@ object BlockerOverlayManager {
                 goToHomeScreen(context)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to open Super Admin app", e)
+            Log.e(TAG, "Failed to open Hourglass app", e)
             goToHomeScreen(context)
         }
     }

@@ -1,4 +1,4 @@
-# Project Workspace Rules: Super Admin App Blocker
+# Project Workspace Rules: Hourglass Time Blocker
 
 ## Core Architecture
 - **Target Platform:** Android-only (`minSdkVersion 26`). Do not generate iOS Swift/Objective-C boilerplate unless required by Expo config compilation.

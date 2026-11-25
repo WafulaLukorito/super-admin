@@ -56,7 +56,7 @@ export default function PermissionsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>1. Usage Stats Access</Text>
               <Text style={styles.permDesc}>
-                Allows Super Admin to read which app is currently in the foreground and track active minutes without battery drain.
+                Allows Hourglass to read which app is currently in the foreground and track active minutes without battery drain.
               </Text>
             </View>
           </View>
@@ -151,7 +151,7 @@ export default function PermissionsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>6. Device Administrator (Fortress)</Text>
               <Text style={styles.permDesc}>
-                Prevents uninstalling or force-stopping Super Admin while active block rules or lockdowns are in effect.
+                Prevents uninstalling or force-stopping Hourglass while active block rules or lockdowns are in effect.
               </Text>
             </View>
           </View>

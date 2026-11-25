@@ -50,7 +50,7 @@ class GraceExtensionReceiver : BroadcastReceiver() {
                 BlockerOverlayManager.hideOverlay(context)
             }
         } else {
-            // Friction challenge required: launch Super Admin app
+            // Friction challenge required: launch Hourglass app
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(EXTRA_OPEN_FRICTION, true)
