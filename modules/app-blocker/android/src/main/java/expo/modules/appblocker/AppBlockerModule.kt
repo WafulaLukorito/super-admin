@@ -38,24 +38,37 @@ class AppBlockerModule : Module() {
             }
         }
 
-        Function("updateRules") { windowMinutes: Int, allowanceMinutes: Int, blockedPackages: List<String> ->
-            BlockerStorage.updateRules(context, windowMinutes, allowanceMinutes, blockedPackages)
+        Function("updateRules") { windowMinutes: Int, allowanceMinutes: Int, blockedPackages: List<String>, trackingMode: String? ->
+            BlockerStorage.updateRules(context, windowMinutes, allowanceMinutes, blockedPackages, trackingMode)
         }
 
-        Function("getRemainingSeconds") {
-            BlockerStorage.getRemainingSeconds(context)
+        Function("getRemainingSeconds") { packageName: String? ->
+            BlockerStorage.getRemainingSeconds(context, packageName)
         }
 
-        Function("getWindowRemainingSeconds") {
-            BlockerStorage.getWindowRemainingSeconds(context)
+        Function("getWindowRemainingSeconds") { packageName: String? ->
+            BlockerStorage.getWindowRemainingSeconds(context, packageName)
         }
 
-        Function("claimGraceExtension") {
-            BlockerStorage.claimGraceExtension(context)
+        Function("getTrackingMode") {
+            BlockerStorage.getTrackingMode(context)
         }
 
-        Function("resetBlock") {
-            BlockerStorage.resetBlock(context)
+        Function("setTrackingMode") { mode: String ->
+            BlockerStorage.setTrackingMode(context, mode)
+            true
+        }
+
+        Function("getAllAppStats") {
+            BlockerStorage.getAllAppStats(context)
+        }
+
+        Function("claimGraceExtension") { packageName: String? ->
+            BlockerStorage.claimGraceExtension(context, packageName)
+        }
+
+        Function("resetBlock") { packageName: String? ->
+            BlockerStorage.resetBlock(context, packageName)
         }
 
         AsyncFunction("getInstalledApps") {

@@ -8,15 +8,26 @@ export interface InstalledApp {
   icon?: string;
 }
 
+export interface AppUsageStat {
+  packageName: string;
+  remainingSeconds: number;
+  windowRemainingSeconds: number;
+  consumedSeconds: number;
+  isLocked: boolean;
+}
+
 interface AppBlockerNativeModule {
   isServiceRunning(): boolean;
   startService(): boolean;
   stopService(): boolean;
-  updateRules(windowMinutes: number, allowanceMinutes: number, blockedPackages: string[]): boolean;
-  getRemainingSeconds(): number;
-  getWindowRemainingSeconds(): number;
-  claimGraceExtension(): boolean;
-  resetBlock(): boolean;
+  updateRules(windowMinutes: number, allowanceMinutes: number, blockedPackages: string[], trackingMode?: string): boolean;
+  getRemainingSeconds(packageName?: string): number;
+  getWindowRemainingSeconds(packageName?: string): number;
+  getTrackingMode(): string;
+  setTrackingMode(mode: string): boolean;
+  getAllAppStats(): AppUsageStat[];
+  claimGraceExtension(packageName?: string): boolean;
+  resetBlock(packageName?: string): boolean;
   getInstalledApps(): Promise<InstalledApp[]>;
 }
 
@@ -40,24 +51,36 @@ export const AppBlocker = {
     return NativeAppBlocker?.stopService() ?? false;
   },
 
-  updateRules(windowMinutes: number, allowanceMinutes: number, blockedPackages: string[]): boolean {
-    return NativeAppBlocker?.updateRules(windowMinutes, allowanceMinutes, blockedPackages) ?? false;
+  updateRules(windowMinutes: number, allowanceMinutes: number, blockedPackages: string[], trackingMode?: string): boolean {
+    return NativeAppBlocker?.updateRules(windowMinutes, allowanceMinutes, blockedPackages, trackingMode) ?? false;
   },
 
-  getRemainingSeconds(): number {
-    return NativeAppBlocker?.getRemainingSeconds() ?? 0;
+  getRemainingSeconds(packageName?: string): number {
+    return NativeAppBlocker?.getRemainingSeconds(packageName) ?? 0;
   },
 
-  getWindowRemainingSeconds(): number {
-    return NativeAppBlocker?.getWindowRemainingSeconds() ?? 0;
+  getWindowRemainingSeconds(packageName?: string): number {
+    return NativeAppBlocker?.getWindowRemainingSeconds(packageName) ?? 0;
   },
 
-  claimGraceExtension(): boolean {
-    return NativeAppBlocker?.claimGraceExtension() ?? false;
+  getTrackingMode(): string {
+    return NativeAppBlocker?.getTrackingMode() ?? 'cumulative';
   },
 
-  resetBlock(): boolean {
-    return NativeAppBlocker?.resetBlock() ?? false;
+  setTrackingMode(mode: string): boolean {
+    return NativeAppBlocker?.setTrackingMode(mode) ?? false;
+  },
+
+  getAllAppStats(): AppUsageStat[] {
+    return NativeAppBlocker?.getAllAppStats() ?? [];
+  },
+
+  claimGraceExtension(packageName?: string): boolean {
+    return NativeAppBlocker?.claimGraceExtension(packageName) ?? false;
+  },
+
+  resetBlock(packageName?: string): boolean {
+    return NativeAppBlocker?.resetBlock(packageName) ?? false;
   },
 
   async getInstalledApps(): Promise<InstalledApp[]> {

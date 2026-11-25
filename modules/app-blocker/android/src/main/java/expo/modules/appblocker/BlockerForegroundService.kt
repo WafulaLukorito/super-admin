@@ -63,7 +63,7 @@ class BlockerForegroundService : Service() {
         super.onCreate()
         Log.i(TAG, "BlockerForegroundService onCreate")
         createNotificationChannel()
-        startForegroundWithCompat("Super Admin Active: Guarding hourly time limits")
+        startForegroundWithCompat("Super Admin Active: Guarding time limits")
         isRunning = true
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -115,7 +115,7 @@ class BlockerForegroundService : Service() {
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Monitors app usage and enforces hourly block allowances"
+                description = "Monitors app usage and enforces block window allowances"
                 setShowBadge(false)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -193,7 +193,6 @@ class BlockerForegroundService : Service() {
         val now = System.currentTimeMillis()
 
         try {
-            // Cold start or cursor reset: look back up to 10 minutes to locate current foreground activity
             if (lastEventTimestamp == 0L || (now - lastEventTimestamp) > 15 * 60 * 1000L) {
                 lastEventTimestamp = now - 10 * 60 * 1000L
             }
@@ -214,13 +213,11 @@ class BlockerForegroundService : Service() {
                 }
             }
 
-            // Keep cursor near real-time, leaving 1s buffer for slightly delayed events
             lastEventTimestamp = maxOf(maxEventTime, now - 1000L)
         } catch (e: Exception) {
             Log.e(TAG, "Error querying UsageEvents", e)
         }
 
-        // Fallback: If activeForegroundPackage is still null on cold start, check recent usage stats
         if (activeForegroundPackage == null) {
             try {
                 val stats = usageStatsManager.queryUsageStats(
@@ -253,26 +250,29 @@ class BlockerForegroundService : Service() {
             val isGuarded = BlockerStorage.isPackageGuarded(this, currentPackage)
 
             if (isGuarded) {
-                // Record 1 second of consumed usage
-                BlockerStorage.recordUsage(this, 1000L)
-                val remainingSeconds = BlockerStorage.getRemainingSeconds(this)
+                // Record usage for currentPackage (in per_app mode it updates that app's timer; in cumulative mode it updates shared pool)
+                BlockerStorage.recordUsage(this, 1000L, currentPackage)
+                val remainingSeconds = BlockerStorage.getRemainingSeconds(this, currentPackage)
+                val trackingMode = BlockerStorage.getTrackingMode(this)
 
-                Log.d(TAG, "Guarded app active: $currentPackage | Remaining: ${remainingSeconds}s")
+                Log.d(TAG, "Guarded app active: $currentPackage | Remaining: ${remainingSeconds}s | Mode: $trackingMode")
 
                 if (remainingSeconds <= 0) {
                     // Allowance exhausted! Trigger overlay blocker immediately
                     BlockerOverlayManager.showOverlay(this, currentPackage)
-                    val windowRemainingSecs = BlockerStorage.getWindowRemainingSeconds(this)
+                    val windowRemainingSecs = BlockerStorage.getWindowRemainingSeconds(this, currentPackage)
                     val wHours = windowRemainingSecs / 3600
                     val wMins = (windowRemainingSecs % 3600) / 60
                     val wSecs = windowRemainingSecs % 60
                     val countdownStr = if (wHours > 0) "${wHours}h ${wMins}m" else "${wMins}m ${wSecs}s"
-                    updateNotification("Strict Lockdown: Unlocks in $countdownStr ($currentPackage)")
+                    val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
+                    updateNotification("Strict Lockdown: Unlocks in $countdownStr [$modeLabel] ($currentPackage)")
                 } else {
                     BlockerOverlayManager.hideOverlay(this)
                     val mins = remainingSeconds / 60
                     val secs = remainingSeconds % 60
-                    updateNotification("Allowance: ${mins}m ${secs}s remaining ($currentPackage)")
+                    val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
+                    updateNotification("Allowance: ${mins}m ${secs}s left [$modeLabel] ($currentPackage)")
                 }
             } else {
                 // Non-guarded app (e.g., Launcher, Phone, Settings)

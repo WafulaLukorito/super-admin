@@ -65,18 +65,21 @@ object BlockerOverlayManager {
                     setPadding(50, 50, 50, 50)
                 }
 
+                val trackingMode = BlockerStorage.getTrackingMode(context)
+                val isPerApp = trackingMode == BlockerStorage.MODE_PER_APP
+
                 val badge = TextView(context).apply {
-                    text = "SUPER ADMIN SHIELD"
+                    text = if (isPerApp) "SUPER ADMIN SHIELD • ISOLATED APP LOCK" else "SUPER ADMIN SHIELD • SHARED POOL"
                     setTextColor(Color.parseColor("#EF4444"))
-                    textSize = 12f
+                    textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
-                    letterSpacing = 0.15f
+                    letterSpacing = 0.12f
                     gravity = Gravity.CENTER
                 }
                 layout.addView(badge)
 
                 val title = TextView(context).apply {
-                    text = "HOURLY TIME LIMIT EXPIRED"
+                    text = "TIME LIMIT EXPIRED"
                     setTextColor(Color.WHITE)
                     textSize = 22f
                     typeface = Typeface.DEFAULT_BOLD
@@ -94,11 +97,15 @@ object BlockerOverlayManager {
                 }
 
                 val message = TextView(context).apply {
-                    text = "$appFriendlyName is currently locked to protect your focus."
+                    text = if (isPerApp) {
+                        "$appFriendlyName has reached its individual window limit.\nOther apps remain accessible under their own allowances."
+                    } else {
+                        "$appFriendlyName and all guarded apps are locked under your shared window allowance."
+                    }
                     setTextColor(Color.parseColor("#94A3B8"))
                     textSize = 14f
                     gravity = Gravity.CENTER
-                    setPadding(0, 0, 0, 28)
+                    setPadding(0, 0, 0, 24)
                 }
                 layout.addView(message)
 
@@ -116,7 +123,7 @@ object BlockerOverlayManager {
                 }
 
                 val countdownHeader = TextView(context).apply {
-                    text = "NEXT UNLOCK IN"
+                    text = if (isPerApp) "$appFriendlyName UNLOCKS IN" else "WINDOW UNLOCKS IN"
                     setTextColor(Color.parseColor("#94A3B8"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
@@ -138,7 +145,12 @@ object BlockerOverlayManager {
 
                 val countdownFooter = TextView(context).apply {
                     val allowanceMins = BlockerStorage.getAllowanceMinutes(context)
-                    text = "Your ${allowanceMins}m allowance will automatically replenish when the hourly window resets."
+                    val windowMins = BlockerStorage.getWindowMinutes(context)
+                    text = if (isPerApp) {
+                        "Your ${allowanceMins}m limit for this app will replenish when its ${windowMins}m window resets."
+                    } else {
+                        "Your ${allowanceMins}m shared allowance will replenish when the ${windowMins}m window resets."
+                    }
                     setTextColor(Color.parseColor("#64748B"))
                     textSize = 12f
                     gravity = Gravity.CENTER
@@ -201,9 +213,9 @@ object BlockerOverlayManager {
                 // Start Live Countdown Loop
                 countdownRunnable = object : Runnable {
                     override fun run() {
-                        val remainingSecs = BlockerStorage.getWindowRemainingSeconds(context)
+                        val remainingSecs = BlockerStorage.getWindowRemainingSeconds(context, blockedPackageName)
                         if (remainingSecs <= 0) {
-                            Log.i(TAG, "Block window reset expired while overlay was open. Auto-dismissing overlay.")
+                            Log.i(TAG, "Block window reset expired for $blockedPackageName while overlay was open. Auto-dismissing overlay.")
                             hideOverlay(context)
                             return
                         }

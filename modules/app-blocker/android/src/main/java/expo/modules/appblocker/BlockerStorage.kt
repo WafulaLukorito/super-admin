@@ -15,6 +15,10 @@ object BlockerStorage {
     private const val KEY_GRACE_CLAIMED = "grace_claimed"
     private const val KEY_GRACE_MILLIS = "grace_millis"
     private const val KEY_IS_ENABLED = "is_shield_enabled"
+    private const val KEY_TRACKING_MODE = "tracking_mode"
+
+    const val MODE_CUMULATIVE = "cumulative"
+    const val MODE_PER_APP = "per_app"
 
     private val DEFAULT_BLOCKED_PACKAGES = setOf(
         "com.instagram.android",
@@ -28,6 +32,49 @@ object BlockerStorage {
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    @Synchronized
+    fun getTrackingMode(context: Context): String {
+        return getPrefs(context).getString(KEY_TRACKING_MODE, MODE_CUMULATIVE) ?: MODE_CUMULATIVE
+    }
+
+    @Synchronized
+    fun setTrackingMode(context: Context, mode: String) {
+        val targetMode = if (mode == MODE_PER_APP) MODE_PER_APP else MODE_CUMULATIVE
+        getPrefs(context).edit().putString(KEY_TRACKING_MODE, targetMode).apply()
+    }
+
+    private fun getBlockStartKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_BLOCK_START_REALTIME}_$packageName"
+        } else {
+            KEY_BLOCK_START_REALTIME
+        }
+    }
+
+    private fun getConsumedMillisKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_CONSUMED_MILLIS}_$packageName"
+        } else {
+            KEY_CONSUMED_MILLIS
+        }
+    }
+
+    private fun getGraceClaimedKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_GRACE_CLAIMED}_$packageName"
+        } else {
+            KEY_GRACE_CLAIMED
+        }
+    }
+
+    private fun getGraceMillisKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_GRACE_MILLIS}_$packageName"
+        } else {
+            KEY_GRACE_MILLIS
+        }
     }
 
     @Synchronized
@@ -50,64 +97,80 @@ object BlockerStorage {
         context: Context,
         windowMinutes: Int,
         allowanceMinutes: Int,
-        blockedPackages: List<String>
+        blockedPackages: List<String>,
+        trackingMode: String? = null
     ): Boolean {
-        getPrefs(context).edit()
+        val editor = getPrefs(context).edit()
             .putInt(KEY_WINDOW_MINS, windowMinutes)
             .putInt(KEY_ALLOWANCE_MINS, allowanceMinutes)
             .putStringSet(KEY_BLOCKED_PKGS, blockedPackages.toSet())
-            .apply()
+
+        if (trackingMode != null) {
+            val targetMode = if (trackingMode == MODE_PER_APP) MODE_PER_APP else MODE_CUMULATIVE
+            editor.putString(KEY_TRACKING_MODE, targetMode)
+        }
+
+        editor.apply()
         return true
     }
 
     @Synchronized
-    fun checkAndResetWindowIfNeeded(context: Context) {
+    fun checkAndResetWindowIfNeeded(context: Context, packageName: String? = null) {
         val prefs = getPrefs(context)
         val windowMins = prefs.getInt(KEY_WINDOW_MINS, 60)
         val windowDurationMillis = windowMins * 60 * 1000L
         val currentRealtime = SystemClock.elapsedRealtime()
 
-        var blockStart = prefs.getLong(KEY_BLOCK_START_REALTIME, 0L)
+        val startKey = getBlockStartKey(context, packageName)
+        val consumedKey = getConsumedMillisKey(context, packageName)
+        val graceClaimedKey = getGraceClaimedKey(context, packageName)
+        val graceMillisKey = getGraceMillisKey(context, packageName)
+
+        var blockStart = prefs.getLong(startKey, 0L)
         if (blockStart == 0L || (currentRealtime - blockStart) >= windowDurationMillis) {
             // Window expired or not started; start a fresh block window
             prefs.edit()
-                .putLong(KEY_BLOCK_START_REALTIME, currentRealtime)
-                .putLong(KEY_CONSUMED_MILLIS, 0L)
-                .putBoolean(KEY_GRACE_CLAIMED, false)
-                .putLong(KEY_GRACE_MILLIS, 0L)
+                .putLong(startKey, currentRealtime)
+                .putLong(consumedKey, 0L)
+                .putBoolean(graceClaimedKey, false)
+                .putLong(graceMillisKey, 0L)
                 .apply()
         }
     }
 
     @Synchronized
-    fun recordUsage(context: Context, deltaMillis: Long) {
-        checkAndResetWindowIfNeeded(context)
+    fun recordUsage(context: Context, deltaMillis: Long, packageName: String? = null) {
+        checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val currentConsumed = prefs.getLong(KEY_CONSUMED_MILLIS, 0L)
-        prefs.edit().putLong(KEY_CONSUMED_MILLIS, currentConsumed + deltaMillis).apply()
+        val consumedKey = getConsumedMillisKey(context, packageName)
+        val currentConsumed = prefs.getLong(consumedKey, 0L)
+        prefs.edit().putLong(consumedKey, currentConsumed + deltaMillis).apply()
     }
 
     @Synchronized
-    fun getRemainingSeconds(context: Context): Int {
-        checkAndResetWindowIfNeeded(context)
+    fun getRemainingSeconds(context: Context, packageName: String? = null): Int {
+        checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, 10)
-        val graceMillis = prefs.getLong(KEY_GRACE_MILLIS, 0L)
+        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, 7)
+        val graceMillisKey = getGraceMillisKey(context, packageName)
+        val consumedKey = getConsumedMillisKey(context, packageName)
+        val graceMillis = prefs.getLong(graceMillisKey, 0L)
         val totalAllowedMillis = (allowanceMins * 60 * 1000L) + graceMillis
-        val consumedMillis = prefs.getLong(KEY_CONSUMED_MILLIS, 0L)
+        val consumedMillis = prefs.getLong(consumedKey, 0L)
 
         val remainingMillis = totalAllowedMillis - consumedMillis
         return if (remainingMillis > 0) (remainingMillis / 1000).toInt() else 0
     }
 
     @Synchronized
-    fun getWindowRemainingSeconds(context: Context): Int {
-        checkAndResetWindowIfNeeded(context)
+    fun getWindowRemainingSeconds(context: Context, packageName: String? = null): Int {
+        checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
         val windowMins = prefs.getInt(KEY_WINDOW_MINS, 60)
         val windowDurationMillis = windowMins * 60 * 1000L
         val currentRealtime = SystemClock.elapsedRealtime()
-        val blockStart = prefs.getLong(KEY_BLOCK_START_REALTIME, currentRealtime)
+        val startKey = getBlockStartKey(context, packageName)
+        val blockStart = prefs.getLong(startKey, currentRealtime)
         val elapsed = currentRealtime - blockStart
         val remainingMillis = windowDurationMillis - elapsed
         return if (remainingMillis > 0) (remainingMillis / 1000).toInt() else 0
@@ -115,7 +178,7 @@ object BlockerStorage {
 
     @Synchronized
     fun getAllowanceMinutes(context: Context): Int {
-        return getPrefs(context).getInt(KEY_ALLOWANCE_MINS, 10)
+        return getPrefs(context).getInt(KEY_ALLOWANCE_MINS, 7)
     }
 
     @Synchronized
@@ -124,31 +187,63 @@ object BlockerStorage {
     }
 
     @Synchronized
-    fun claimGraceExtension(context: Context): Boolean {
-        checkAndResetWindowIfNeeded(context)
+    fun claimGraceExtension(context: Context, packageName: String? = null): Boolean {
+        checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val alreadyClaimed = prefs.getBoolean(KEY_GRACE_CLAIMED, false)
+        val graceClaimedKey = getGraceClaimedKey(context, packageName)
+        val graceMillisKey = getGraceMillisKey(context, packageName)
+        val alreadyClaimed = prefs.getBoolean(graceClaimedKey, false)
         if (alreadyClaimed) {
             return false // Strict anti-tamper: max 1 grace extension per window
         }
 
         prefs.edit()
-            .putBoolean(KEY_GRACE_CLAIMED, true)
-            .putLong(KEY_GRACE_MILLIS, 120_000L) // 2 minutes
+            .putBoolean(graceClaimedKey, true)
+            .putLong(graceMillisKey, 120_000L) // 2 minutes
             .apply()
         return true
     }
 
     @Synchronized
-    fun resetBlock(context: Context): Boolean {
+    fun resetBlock(context: Context, packageName: String? = null): Boolean {
         val prefs = getPrefs(context)
+        val currentRealtime = SystemClock.elapsedRealtime()
+        val startKey = getBlockStartKey(context, packageName)
+        val consumedKey = getConsumedMillisKey(context, packageName)
+        val graceClaimedKey = getGraceClaimedKey(context, packageName)
+        val graceMillisKey = getGraceMillisKey(context, packageName)
+
         prefs.edit()
-            .putLong(KEY_BLOCK_START_REALTIME, SystemClock.elapsedRealtime())
-            .putLong(KEY_CONSUMED_MILLIS, 0L)
-            .putBoolean(KEY_GRACE_CLAIMED, false)
-            .putLong(KEY_GRACE_MILLIS, 0L)
+            .putLong(startKey, currentRealtime)
+            .putLong(consumedKey, 0L)
+            .putBoolean(graceClaimedKey, false)
+            .putLong(graceMillisKey, 0L)
             .apply()
         return true
+    }
+
+    @Synchronized
+    fun getAllAppStats(context: Context): List<Map<String, Any>> {
+        val guarded = getBlockedPackages(context)
+        val result = mutableListOf<Map<String, Any>>()
+        val allowanceMins = getAllowanceMinutes(context)
+        val totalAllowedSecs = allowanceMins * 60
+
+        for (pkg in guarded) {
+            val remaining = getRemainingSeconds(context, pkg)
+            val windowRemaining = getWindowRemainingSeconds(context, pkg)
+            val consumed = maxOf(0, totalAllowedSecs - remaining)
+            result.add(
+                mapOf(
+                    "packageName" to pkg,
+                    "remainingSeconds" to remaining,
+                    "windowRemainingSeconds" to windowRemaining,
+                    "consumedSeconds" to consumed,
+                    "isLocked" to (remaining <= 0)
+                )
+            )
+        }
+        return result
     }
 
     @Synchronized

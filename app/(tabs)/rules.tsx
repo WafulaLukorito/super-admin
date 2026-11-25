@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BlockerEngine, BlockerState, MonitoredApp } from '@/services/blockerEngine';
+import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode } from '@/services/blockerEngine';
 
 export default function RulesScreen() {
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
@@ -45,11 +45,23 @@ export default function RulesScreen() {
     }
   };
 
-  const handleSetInterval = (windowMins: number, allowanceMins: number) => {
-    BlockerEngine.setRules(windowMins, allowanceMins);
+  const handleSelectPreset = (type: '1h' | '2h') => {
+    BlockerEngine.setPreset(type);
+    const win = type === '1h' ? 60 : 120;
+    const all = type === '1h' ? 7 : 15;
     Alert.alert(
-      'Interval Updated',
-      `Target limit set to ${allowanceMins} minutes per ${windowMins}-minute window.`
+      'Window Preset Activated',
+      `${type === '1h' ? '1 Hour' : '2 Hours'} Window: ${all}m allowance per ${win}m rolling block.`
+    );
+  };
+
+  const handleSelectMode = (mode: TrackingMode) => {
+    BlockerEngine.setTrackingMode(mode);
+    Alert.alert(
+      'Enforcement Mode Updated',
+      mode === 'per_app'
+        ? 'Per-App Isolated Mode: Each app has its own separate timer and window. Using Twitter will not count against Instagram.'
+        : 'Cumulative Shared Pool: All guarded apps share a combined allowance pool. Reaching limit locks all guarded apps.'
     );
   };
 
@@ -74,7 +86,7 @@ export default function RulesScreen() {
     BlockerEngine.addAuditLog('reset', 'Custom App Added', `Guarding ${newApp.name} (${newApp.packageName})`);
     setNewAppName('');
     setNewPkgName('');
-    Alert.alert('App Added', `${newApp.name} is now guarded under your hourly limit rules.`);
+    Alert.alert('App Added', `${newApp.name} is now guarded under your rules.`);
   };
 
   // Filter apps
@@ -92,6 +104,8 @@ export default function RulesScreen() {
   });
 
   const guardedCount = state.monitoredApps.filter((a) => a.blocked).length;
+  const is1hPreset = state.windowMinutes === 60 && state.allowanceMinutes === 7;
+  const is2hPreset = state.windowMinutes === 120 && state.allowanceMinutes === 15;
 
   return (
     <View style={styles.container}>
@@ -99,7 +113,7 @@ export default function RulesScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>BLOCK RULES & LIMITS</Text>
-          <Text style={styles.subtitle}>Configure rolling time windows and guarded applications</Text>
+          <Text style={styles.subtitle}>Configure rolling windows, modes & guarded apps</Text>
         </View>
 
         {/* Battery Sleep Status Card */}
@@ -108,55 +122,133 @@ export default function RulesScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.batteryTitle}>Battery Sleep Engine Active</Text>
             <Text style={styles.batterySubtitle}>
-              Polling loop automatically shuts down when the phone screen is off or in your pocket. 0% idle drain.
+              Polling loop shuts down when the phone screen is off. 0% idle drain.
             </Text>
           </View>
         </View>
 
-        {/* Interval Engine Presets */}
+        {/* Window Presets Toggle */}
         <View style={styles.card}>
-          <Text style={styles.cardSection}>BLOCK WINDOW INTERVAL</Text>
-          <View style={styles.presetGrid}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSection}>WINDOW INTERVAL & ALLOWANCE</Text>
+            <View style={styles.currentBadge}>
+              <Text style={styles.currentBadgeText}>
+                {state.allowanceMinutes}m / {state.windowMinutes}m
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.cardExplainer}>
+            Toggle between standard 1-hour focus and extended 2-hour cycles:
+          </Text>
+
+          <View style={styles.presetToggleRow}>
             <TouchableOpacity
-              style={[
-                styles.presetButton,
-                state.windowMinutes === 60 && state.allowanceMinutes === 10 && styles.presetButtonActive,
-              ]}
-              onPress={() => handleSetInterval(60, 10)}>
-              <Text style={styles.presetTitle}>10m / 1 Hour</Text>
-              <Text style={styles.presetDesc}>Default strict balance</Text>
+              style={[styles.presetCard, is1hPreset && styles.presetCardActive]}
+              onPress={() => handleSelectPreset('1h')}>
+              <View style={styles.presetTop}>
+                <MaterialIcons
+                  name="schedule"
+                  size={20}
+                  color={is1hPreset ? '#38BDF8' : '#64748B'}
+                />
+                <View style={[styles.presetTag, is1hPreset && styles.presetTagActive]}>
+                  <Text style={[styles.presetTagText, is1hPreset && styles.presetTagTextActive]}>
+                    7 MINS / HR
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.presetName}>1 Hour Window</Text>
+              <Text style={styles.presetDetail}>
+                7 minutes allowed within every rolling 60-minute interval.
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.presetButton,
-                state.windowMinutes === 60 && state.allowanceMinutes === 5 && styles.presetButtonActive,
-              ]}
-              onPress={() => handleSetInterval(60, 5)}>
-              <Text style={styles.presetTitle}>5m / 1 Hour</Text>
-              <Text style={styles.presetDesc}>Extreme focus mode</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.presetButton,
-                state.windowMinutes === 60 && state.allowanceMinutes === 15 && styles.presetButtonActive,
-              ]}
-              onPress={() => handleSetInterval(60, 15)}>
-              <Text style={styles.presetTitle}>15m / 1 Hour</Text>
-              <Text style={styles.presetDesc}>Moderate allowance</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.presetButton,
-                state.windowMinutes === 120 && state.allowanceMinutes === 15 && styles.presetButtonActive,
-              ]}
-              onPress={() => handleSetInterval(120, 15)}>
-              <Text style={styles.presetTitle}>15m / 2 Hours</Text>
-              <Text style={styles.presetDesc}>Extended 120m cycle</Text>
+              style={[styles.presetCard, is2hPreset && styles.presetCardActive]}
+              onPress={() => handleSelectPreset('2h')}>
+              <View style={styles.presetTop}>
+                <MaterialIcons
+                  name="hourglass-bottom"
+                  size={20}
+                  color={is2hPreset ? '#38BDF8' : '#64748B'}
+                />
+                <View style={[styles.presetTag, is2hPreset && styles.presetTagActive]}>
+                  <Text style={[styles.presetTagText, is2hPreset && styles.presetTagTextActive]}>
+                    15 MINS / 2 HRS
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.presetName}>2 Hours Window</Text>
+              <Text style={styles.presetDetail}>
+                15 minutes allowed within every rolling 120-minute interval.
+              </Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Tracking Mode Selector */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSection}>ENFORCEMENT MODE</Text>
+            <View style={[styles.currentBadge, state.trackingMode === 'per_app' ? styles.modeBadgePerApp : styles.modeBadgeCumul]}>
+              <Text style={styles.currentBadgeText}>
+                {state.trackingMode === 'per_app' ? 'PER-APP ISOLATED' : 'CUMULATIVE POOL'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.cardExplainer}>
+            Choose whether all guarded apps share one pool or count time independently:
+          </Text>
+
+          {/* Cumulative Tile */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.trackingMode === 'cumulative' && styles.modeCardActive,
+            ]}
+            onPress={() => handleSelectMode('cumulative')}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="layers"
+                  size={20}
+                  color={state.trackingMode === 'cumulative' ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Cumulative Shared Pool</Text>
+              </View>
+              <View style={[styles.radioCircle, state.trackingMode === 'cumulative' && styles.radioCircleActive]}>
+                {state.trackingMode === 'cumulative' && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              All guarded apps share the same {state.allowanceMinutes}m limit. Using Twitter, Instagram, or TikTok adds to one shared meter. Reaching zero locks all apps together.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Per-App Tile */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.trackingMode === 'per_app' && styles.modeCardActive,
+            ]}
+            onPress={() => handleSelectMode('per_app')}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="splitscreen"
+                  size={20}
+                  color={state.trackingMode === 'per_app' ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Per-App Separate Timers</Text>
+              </View>
+              <View style={[styles.radioCircle, state.trackingMode === 'per_app' && styles.radioCircleActive]}>
+                {state.trackingMode === 'per_app' && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Each app gets its own separate {state.allowanceMinutes}m limit and {state.windowMinutes}m rolling window. Using Twitter for {state.allowanceMinutes}m locks Twitter, but Instagram retains its own full allowance.
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Installed Apps Manager */}
@@ -237,7 +329,16 @@ export default function RulesScreen() {
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.appName} numberOfLines={1}>{app.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.appName} numberOfLines={1}>{app.name}</Text>
+                    {state.trackingMode === 'per_app' && app.blocked && (
+                      <View style={[styles.perAppBadge, app.isLocked ? styles.perAppBadgeLocked : styles.perAppBadgeActive]}>
+                        <Text style={styles.perAppBadgeText}>
+                          {app.isLocked ? 'LOCKED' : `${Math.floor((app.remainingSeconds ?? (state.allowanceMinutes * 60)) / 60)}m left`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.appPkg} numberOfLines={1}>{app.packageName}</Text>
                 </View>
                 <Switch
@@ -248,33 +349,36 @@ export default function RulesScreen() {
                 />
               </View>
             ))}
+
             {filteredApps.length === 0 && (
-              <Text style={styles.emptyText}>No matching applications found.</Text>
+              <Text style={styles.emptyText}>No applications found matching search.</Text>
             )}
           </View>
         </View>
 
-        {/* Add Custom App Card */}
+        {/* Custom Application Input */}
         <View style={styles.card}>
-          <Text style={styles.cardSection}>ADD CUSTOM PACKAGE IDENTIFIER</Text>
+          <Text style={styles.cardSection}>GUARD CUSTOM PACKAGE</Text>
+          <Text style={styles.cardExplainer}>
+            Enter an Android package name directly to enforce restrictions:
+          </Text>
           <TextInput
             style={styles.input}
-            placeholder="Display Name (e.g. Candy Crush)"
+            placeholder="App Name (e.g. Threads)"
             placeholderTextColor="#64748B"
             value={newAppName}
             onChangeText={setNewAppName}
           />
           <TextInput
             style={styles.input}
-            placeholder="Package (e.g. com.king.candycrushsaga)"
+            placeholder="Package Identifier (e.g. com.instagram.barcelona)"
             placeholderTextColor="#64748B"
             value={newPkgName}
             onChangeText={setNewPkgName}
-            autoCapitalize="none"
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddCustomApp}>
             <MaterialIcons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Add to Guard List</Text>
+            <Text style={styles.addButtonText}>Add Guarded Package</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -299,54 +403,181 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     color: '#F8FAFC',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 13,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 2,
   },
   batteryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#06281E',
+    backgroundColor: '#064E3B',
     borderRadius: 12,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#065F46',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#059669',
   },
   batteryTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#34D399',
-    marginBottom: 2,
   },
   batterySubtitle: {
     fontSize: 11,
     color: '#A7F3D0',
+    marginTop: 2,
     lineHeight: 15,
   },
   card: {
-    backgroundColor: '#131C2E',
-    borderRadius: 16,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
     padding: 18,
-    marginBottom: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#334155',
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   cardSection: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#94A3B8',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
+  },
+  cardExplainer: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 14,
+    lineHeight: 17,
+  },
+  currentBadge: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#0284C7',
+  },
+  modeBadgePerApp: {
+    borderColor: '#A855F7',
+  },
+  modeBadgeCumul: {
+    borderColor: '#38BDF8',
+  },
+  currentBadgeText: {
+    color: '#38BDF8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  presetToggleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  presetCard: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  presetCardActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0B233E',
+  },
+  presetTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  presetTag: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  presetTagActive: {
+    backgroundColor: '#0284C7',
+  },
+  presetTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  presetTagTextActive: {
+    color: '#FFFFFF',
+  },
+  presetName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    marginBottom: 4,
+  },
+  presetDetail: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  modeCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    marginBottom: 10,
+  },
+  modeCardActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0B233E',
+  },
+  modeCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  modeIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  modeCardDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleActive: {
+    borderColor: '#38BDF8',
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#38BDF8',
   },
   cardCounter: {
     fontSize: 11,
@@ -413,34 +644,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  presetGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 8,
-  },
-  presetButton: {
-    width: '48%',
-    backgroundColor: '#0F172A',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  presetButtonActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
-  },
-  presetTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F8FAFC',
-    marginBottom: 2,
-  },
-  presetDesc: {
-    fontSize: 11,
-    color: '#64748B',
-  },
   appList: {
     gap: 12,
   },
@@ -475,6 +678,22 @@ const styles = StyleSheet.create({
   appPkg: {
     fontSize: 11,
     color: '#64748B',
+  },
+  perAppBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  perAppBadgeLocked: {
+    backgroundColor: '#7F1D1D',
+  },
+  perAppBadgeActive: {
+    backgroundColor: '#064E3B',
+  },
+  perAppBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   emptyText: {
     color: '#64748B',

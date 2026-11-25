@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import AppBlocker from '../modules/app-blocker';
+import AppBlocker, { AppUsageStat } from '../modules/app-blocker';
+
+export type TrackingMode = 'cumulative' | 'per_app';
 
 export interface MonitoredApp {
   id: string;
@@ -9,6 +11,9 @@ export interface MonitoredApp {
   blocked: boolean;
   dailyUsageMinutes: number;
   icon?: string;
+  remainingSeconds?: number;
+  windowRemainingSeconds?: number;
+  isLocked?: boolean;
 }
 
 export interface AuditEvent {
@@ -21,9 +26,10 @@ export interface AuditEvent {
 
 export interface BlockerState {
   isShieldActive: boolean;
-  windowMinutes: number;       // default: 60
-  allowanceMinutes: number;    // default: 10
-  currentBlockElapsedSeconds: number; // time into current 60m block
+  trackingMode: TrackingMode;  // 'cumulative' = shared pool | 'per_app' = independent timers
+  windowMinutes: number;       // 60 (1 hr) or 120 (2 hrs)
+  allowanceMinutes: number;    // 7 (1 hr) or 15 (2 hrs)
+  currentBlockElapsedSeconds: number; // time into current window
   usedSecondsInBlock: number;  // seconds consumed out of allowance
   graceClaimedInCurrentBlock: boolean; // max 1 extension per block
   graceSecondsRemaining: number;
@@ -33,7 +39,7 @@ export interface BlockerState {
   lastUptimeAnchor: number;
 }
 
-const STORAGE_KEY = '@super_admin_blocker_state_v2';
+const STORAGE_KEY = '@super_admin_blocker_state_v3';
 
 const DEFAULT_APPS: MonitoredApp[] = [
   { id: '1', name: 'Instagram', packageName: 'com.instagram.android', category: 'poison', blocked: true, dailyUsageMinutes: 38 },
@@ -48,8 +54,9 @@ const DEFAULT_APPS: MonitoredApp[] = [
 
 const INITIAL_STATE: BlockerState = {
   isShieldActive: true,
+  trackingMode: 'cumulative',
   windowMinutes: 60,
-  allowanceMinutes: 10,
+  allowanceMinutes: 7,
   currentBlockElapsedSeconds: 0,
   usedSecondsInBlock: 0,
   graceClaimedInCurrentBlock: false,
@@ -62,7 +69,7 @@ const INITIAL_STATE: BlockerState = {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'reset',
       title: 'Super Admin Shield Initialized',
-      detail: 'Native Kotlin background monitor & overlay daemon armed.',
+      detail: 'Window presets (1h/7m, 2h/15m) & tracking modes (Cumulative/Per-App) loaded.',
     },
     {
       id: 'log-2',
@@ -116,6 +123,37 @@ export class BlockerEngine {
         if (windowRemainingSecs !== this.state.windowRemainingSeconds) {
           this.state.windowRemainingSeconds = windowRemainingSecs;
           this.state.currentBlockElapsedSeconds = Math.max(0, this.state.windowMinutes * 60 - windowRemainingSecs);
+          stateChanged = true;
+        }
+      }
+
+      // Synchronize per-app breakdown
+      const allStats = AppBlocker.getAllAppStats();
+      if (Array.isArray(allStats) && allStats.length > 0) {
+        const statsMap = new Map<string, AppUsageStat>(allStats.map((s) => [s.packageName, s]));
+        let anyAppChanged = false;
+        const updatedApps = this.state.monitoredApps.map((app) => {
+          const stat = statsMap.get(app.packageName);
+          if (stat) {
+            if (
+              app.remainingSeconds !== stat.remainingSeconds ||
+              app.windowRemainingSeconds !== stat.windowRemainingSeconds ||
+              app.isLocked !== stat.isLocked
+            ) {
+              anyAppChanged = true;
+              return {
+                ...app,
+                remainingSeconds: stat.remainingSeconds,
+                windowRemainingSeconds: stat.windowRemainingSeconds,
+                isLocked: stat.isLocked,
+              };
+            }
+          }
+          return app;
+        });
+
+        if (anyAppChanged) {
+          this.state.monitoredApps = updatedApps;
           stateChanged = true;
         }
       }
@@ -193,7 +231,8 @@ export class BlockerEngine {
       AppBlocker.updateRules(
         this.state.windowMinutes,
         this.state.allowanceMinutes,
-        blockedPkgs
+        blockedPkgs,
+        this.state.trackingMode
       );
     } catch (e) {
       console.warn('Sync with native daemon error:', e);
@@ -224,27 +263,47 @@ export class BlockerEngine {
     this.notify();
   }
 
+  static setPreset(type: '1h' | '2h'): void {
+    if (type === '1h') {
+      this.setRules(60, 7);
+    } else {
+      this.setRules(120, 15);
+    }
+  }
+
+  static setTrackingMode(mode: TrackingMode): void {
+    this.state.trackingMode = mode;
+    this.addAuditLog(
+      'reset',
+      'Tracking Mode Switched',
+      mode === 'per_app'
+        ? 'Per-App Isolated: Each app has an independent allowance & reset timer.'
+        : 'Cumulative Pool: All guarded apps share the window allowance.'
+    );
+    this.notify();
+  }
+
   static setRules(windowMinutes: number, allowanceMinutes: number): void {
     this.state.windowMinutes = windowMinutes;
     this.state.allowanceMinutes = allowanceMinutes;
     this.addAuditLog(
       'reset',
-      'Rule Configuration Updated',
-      `Set to ${allowanceMinutes}m allowance per ${windowMinutes}m rolling block window.`
+      'Window Preset Configured',
+      `${allowanceMinutes}m allowance per ${windowMinutes}m rolling block window.`
     );
     this.notify();
   }
 
-  static claimFrictionGrace(): { success: boolean; message: string } {
+  static claimFrictionGrace(packageName?: string): { success: boolean; message: string } {
     if (this.state.graceClaimedInCurrentBlock) {
       return {
         success: false,
-        message: 'Strict Anti-Tamper: Only 1 friction extension is permitted per hourly block window.',
+        message: 'Strict Anti-Tamper: Only 1 friction extension is permitted per block window.',
       };
     }
 
     try {
-      AppBlocker.claimGraceExtension();
+      AppBlocker.claimGraceExtension(packageName);
     } catch (e) {}
 
     this.state.graceClaimedInCurrentBlock = true;
@@ -272,16 +331,16 @@ export class BlockerEngine {
     this.state.auditLogs = [newLog, ...this.state.auditLogs.slice(0, 49)];
   }
 
-  static resetBlock(): void {
+  static resetBlock(packageName?: string): void {
     try {
-      AppBlocker.resetBlock();
+      AppBlocker.resetBlock(packageName);
     } catch (e) {}
 
     this.state.usedSecondsInBlock = 0;
     this.state.currentBlockElapsedSeconds = 0;
     this.state.graceClaimedInCurrentBlock = false;
     this.state.graceSecondsRemaining = 0;
-    this.addAuditLog('reset', 'Manual Block Reset', 'New hourly interval started.');
+    this.addAuditLog('reset', 'Manual Block Reset', 'Fresh block window initialized.');
     this.notify();
   }
 }
