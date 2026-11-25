@@ -103,7 +103,7 @@ export default function SetupScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>4. Notifications</Text>
               <Text style={styles.permDesc}>
-                Sends 2-minute and 1-minute heads-up alerts with an option for extra time.
+                Sends sticky 2-minute and 1-minute alerts with quick +2m and +5m extra time buttons.
               </Text>
             </View>
           </View>

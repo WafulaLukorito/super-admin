@@ -9,6 +9,7 @@ import {
   Easing,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { BlockerEngine } from '@/services/blockerEngine';
 
 interface Props {
   visible: boolean;
@@ -28,6 +29,7 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
     setCountdown(10);
     setPhaseText('Inhale slowly...');
     scaleAnim.setValue(1);
+    BlockerEngine.playSound('breathe');
 
     // Breathing loop: 4s expand, 2s hold, 4s contract
     const breathingCycle = Animated.sequence([
@@ -54,12 +56,16 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
         if (next <= 0) {
           clearInterval(interval);
           setPhaseText('Centered & Deliberate');
+          BlockerEngine.playSound('success');
           return 0;
         }
         if (next >= 7) {
           setPhaseText('Inhale slowly...');
         } else if (next >= 5) {
           setPhaseText('Hold your breath...');
+        } else if (next === 4) {
+          setPhaseText('Exhale gently...');
+          BlockerEngine.playSound('breathe');
         } else {
           setPhaseText('Exhale gently...');
         }

@@ -10,11 +10,14 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { BlockerEngine, FrictionType, MathDifficulty } from '@/services/blockerEngine';
+import { resolveAppName } from '@/constants/appCatalog';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  targetPackageName?: string;
+  initialMinutes?: number;
 }
 
 interface MathProblem {
@@ -24,46 +27,43 @@ interface MathProblem {
 
 function generateMathProblem(diff: MathDifficulty): MathProblem {
   if (diff === 'easy') {
-    // Easy: simple, single or small double-digit addition / subtraction (5-20)
     const isAddition = Math.random() > 0.4;
     if (isAddition) {
-      const a = Math.floor(Math.random() * 10) + 5; // 5 to 14
-      const b = Math.floor(Math.random() * 9) + 3;  // 3 to 11
+      const a = Math.floor(Math.random() * 10) + 5;
+      const b = Math.floor(Math.random() * 9) + 3;
       return {
         question: `${a} + ${b} = ?`,
         answer: (a + b).toString(),
       };
     } else {
-      const a = Math.floor(Math.random() * 12) + 12; // 12 to 23
-      const b = Math.floor(Math.random() * 8) + 3;   // 3 to 10
+      const a = Math.floor(Math.random() * 12) + 12;
+      const b = Math.floor(Math.random() * 8) + 3;
       return {
         question: `${a} - ${b} = ?`,
         answer: (a - b).toString(),
       };
     }
   } else if (diff === 'medium') {
-    // Medium: times table up to 9x9 or 2-digit sums
     const isMultiplication = Math.random() > 0.5;
     if (isMultiplication) {
-      const a = Math.floor(Math.random() * 6) + 4; // 4 to 9
-      const b = Math.floor(Math.random() * 6) + 4; // 4 to 9
+      const a = Math.floor(Math.random() * 6) + 4;
+      const b = Math.floor(Math.random() * 6) + 4;
       return {
         question: `${a} × ${b} = ?`,
         answer: (a * b).toString(),
       };
     } else {
-      const a = Math.floor(Math.random() * 30) + 20; // 20 to 49
-      const b = Math.floor(Math.random() * 25) + 15; // 15 to 39
+      const a = Math.floor(Math.random() * 30) + 20;
+      const b = Math.floor(Math.random() * 25) + 15;
       return {
         question: `${a} + ${b} = ?`,
         answer: (a + b).toString(),
       };
     }
   } else {
-    // Hard: two-step arithmetic equation
-    const a = Math.floor(Math.random() * 10) + 11; // 11 to 20
-    const mult = Math.floor(Math.random() * 3) + 2; // 2, 3, or 4
-    const add = Math.floor(Math.random() * 15) + 10; // 10 to 24
+    const a = Math.floor(Math.random() * 10) + 11;
+    const mult = Math.floor(Math.random() * 3) + 2;
+    const add = Math.floor(Math.random() * 15) + 10;
     return {
       question: `(${a} × ${mult}) + ${add} = ?`,
       answer: (a * mult + add).toString(),
@@ -80,10 +80,17 @@ function generateMemorySequence(): number[] {
   ];
 }
 
-export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
+export function FrictionChallengeModal({
+  visible,
+  onClose,
+  onSuccess,
+  targetPackageName,
+  initialMinutes = 2,
+}: Props) {
   const engineState = BlockerEngine.getState();
   const [challengeType, setChallengeType] = useState<FrictionType>(engineState.frictionType || 'math');
   const [difficulty, setDifficulty] = useState<MathDifficulty>(engineState.mathDifficulty || 'medium');
+  const [selectedMinutes, setSelectedMinutes] = useState<number>(initialMinutes);
   const [currentProblem, setCurrentProblem] = useState<MathProblem>({ question: '7 × 8 = ?', answer: '56' });
   const [mathAnswer, setMathAnswer] = useState('');
   const [pledgeText, setPledgeText] = useState('');
@@ -94,9 +101,11 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   const [memoryAnswer, setMemoryAnswer] = useState('');
   const [memoryTimer, setMemoryTimer] = useState(3);
 
-  const targetPledge = 'I will close this app in 2 minutes and focus.';
+  const allow2 = engineState.extraTime2MinEnabled;
+  const allow5 = engineState.extraTime5MinEnabled;
+  const targetAppLabel = targetPackageName ? resolveAppName(targetPackageName) : null;
+  const targetPledge = `I will close ${targetAppLabel || 'this app'} in ${selectedMinutes} minutes and focus.`;
 
-  // Regenerate math problem when modal becomes visible or difficulty changes
   useEffect(() => {
     if (visible) {
       const latest = BlockerEngine.getState();
@@ -105,8 +114,17 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
       setCurrentProblem(generateMathProblem(latest.mathDifficulty || 'medium'));
       setMathAnswer('');
       setPledgeText('');
+      if (initialMinutes === 5 && latest.extraTime5MinEnabled) {
+        setSelectedMinutes(5);
+      } else if (initialMinutes === 2 && latest.extraTime2MinEnabled) {
+        setSelectedMinutes(2);
+      } else if (latest.extraTime2MinEnabled) {
+        setSelectedMinutes(2);
+      } else if (latest.extraTime5MinEnabled) {
+        setSelectedMinutes(5);
+      }
     }
-  }, [visible]);
+  }, [visible, initialMinutes]);
 
   const handleDifficultyChange = (newDiff: MathDifficulty) => {
     setDifficulty(newDiff);
@@ -146,7 +164,8 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   const handleVerify = () => {
     if (challengeType === 'math') {
       if (mathAnswer.trim() === currentProblem.answer) {
-        const result = BlockerEngine.claimFrictionGrace();
+        BlockerEngine.playSound('success');
+        const result = BlockerEngine.claimFrictionGrace(targetPackageName, selectedMinutes);
         if (result.success) {
           Alert.alert('Extra Time Added', result.message);
           setMathAnswer('');
@@ -154,8 +173,10 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
           onClose();
         } else {
           Alert.alert('Not Available', result.message);
+          onClose();
         }
       } else {
+        BlockerEngine.playSound('error');
         Alert.alert(
           'Not Quite',
           `"${mathAnswer.trim()}" isn't right. Try ${currentProblem.question}`
@@ -163,7 +184,8 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
       }
     } else if (challengeType === 'pledge') {
       if (pledgeText.trim().toLowerCase() === targetPledge.toLowerCase()) {
-        const result = BlockerEngine.claimFrictionGrace();
+        BlockerEngine.playSound('success');
+        const result = BlockerEngine.claimFrictionGrace(targetPackageName, selectedMinutes);
         if (result.success) {
           Alert.alert('Extra Time Added', result.message);
           setPledgeText('');
@@ -171,15 +193,18 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
           onClose();
         } else {
           Alert.alert('Not Available', result.message);
+          onClose();
         }
       } else {
-        Alert.alert('Almost There', 'Please type the exact sentence above to add 2 minutes.');
+        BlockerEngine.playSound('error');
+        Alert.alert('Almost There', `Please type the exact sentence above to add ${selectedMinutes} minutes.`);
       }
     } else {
       const targetReversed = [...memorySequence].reverse().join('');
       const cleanInput = memoryAnswer.replace(/[^0-9]/g, '');
       if (cleanInput === targetReversed) {
-        const result = BlockerEngine.claimFrictionGrace();
+        BlockerEngine.playSound('success');
+        const result = BlockerEngine.claimFrictionGrace(targetPackageName, selectedMinutes);
         if (result.success) {
           Alert.alert('Extra Time Added', result.message);
           setMemoryAnswer('');
@@ -187,8 +212,10 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
           onClose();
         } else {
           Alert.alert('Not Available', result.message);
+          onClose();
         }
       } else {
+        BlockerEngine.playSound('error');
         Alert.alert('Not Quite', `The reverse order was ${targetReversed}. Try a fresh set of digits.`);
         handleResetMemory();
       }
@@ -206,10 +233,34 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.title}>2 Extra Minutes</Text>
-          <Text style={styles.subtitle}>
-            You get one 2-minute extension per cycle. Complete a quick check to continue.
+          <Text style={styles.title}>
+            {selectedMinutes} Extra Minutes{targetAppLabel ? ` for ${targetAppLabel}` : ''}
           </Text>
+          <Text style={styles.subtitle}>
+            You get one extra-time boost per cycle. Complete a quick check to continue.
+          </Text>
+
+          {allow2 && allow5 && (
+            <View style={styles.durationRow}>
+              <Text style={styles.difficultyLabel}>Duration:</Text>
+              <View style={styles.durationPills}>
+                {[2, 5].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[styles.durationPill, selectedMinutes === mins && styles.durationPillActive]}
+                    onPress={() => setSelectedMinutes(mins)}>
+                    <Text
+                      style={[
+                        styles.durationPillText,
+                        selectedMinutes === mins && styles.durationPillTextActive,
+                      ]}>
+                      +{mins} Min
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.tabRow}>
             <TouchableOpacity
@@ -262,7 +313,6 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
 
           {challengeType === 'math' ? (
             <View style={styles.challengeBox}>
-              {/* Difficulty Selector Row */}
               <View style={styles.difficultyRow}>
                 <Text style={styles.difficultyLabel}>Difficulty:</Text>
                 <View style={styles.diffPills}>
@@ -345,7 +395,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitButton} onPress={handleVerify}>
-              <Text style={styles.submitText}>Unlock 2 Minutes</Text>
+              <Text style={styles.submitText}>Unlock {selectedMinutes} Minutes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -384,7 +434,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   title: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 6,
@@ -393,7 +443,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#A8B5B0',
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  durationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  durationPills: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  durationPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#141414',
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  durationPillActive: {
+    backgroundColor: '#84E150',
+    borderColor: '#84E150',
+  },
+  durationPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A8B5B0',
+  },
+  durationPillTextActive: {
+    color: '#101A17',
+    fontWeight: '800',
   },
   tabRow: {
     flexDirection: 'row',

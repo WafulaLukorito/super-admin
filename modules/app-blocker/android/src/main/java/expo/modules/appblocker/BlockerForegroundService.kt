@@ -27,10 +27,10 @@ class BlockerForegroundService : Service() {
     companion object {
         private const val TAG = "SuperAdminBlocker"
         private const val NOTIFICATION_ID = 9182
-        private const val CHANNEL_ID = "super_admin_fgs_channel"
+        private const val CHANNEL_ID = "hourglass_fgs_channel"
         private const val CHANNEL_NAME = "Hourglass Background Monitor"
-        private const val WARNING_CHANNEL_ID = "super_admin_heads_up_channel"
-        private const val WARNING_CHANNEL_NAME = "Hourglass Warning Alerts"
+        private const val WARNING_CHANNEL_ID = "hourglass_heads_up_v2"
+        private const val WARNING_CHANNEL_NAME = "Hourglass Time Warnings"
         private const val WARNING_NOTIFICATION_ID = 9183
 
         var isRunning = false
@@ -57,6 +57,7 @@ class BlockerForegroundService : Service() {
     private var executor: ScheduledExecutorService? = null
     private var lastEventTimestamp: Long = 0L
     private var activeForegroundPackage: String? = null
+    private var lastLockedPackage: String? = null
     private var isScreenOn = true
     private var screenReceiver: BroadcastReceiver? = null
 
@@ -88,13 +89,12 @@ class BlockerForegroundService : Service() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
-                        Log.d(TAG, "Screen OFF -> pausing monitoring loop")
                         isScreenOn = false
                         stopMonitoringLoop()
+                        dismissWarningNotification()
                         BlockerOverlayManager.hideOverlay(this@BlockerForegroundService)
                     }
                     Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
-                        Log.d(TAG, "Screen ON / User Present -> resuming monitoring loop")
                         if (!isScreenOn) {
                             isScreenOn = true
                             startMonitoringLoop()
@@ -120,7 +120,7 @@ class BlockerForegroundService : Service() {
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Monitors app usage and enforces block window allowances"
+                description = "Monitors active app timers in the background"
                 setShowBadge(false)
             }
             manager.createNotificationChannel(channel)
@@ -130,9 +130,9 @@ class BlockerForegroundService : Service() {
                 WARNING_CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "High-priority heads-up popups when app allowance is running low"
+                description = "Sticky heads-up alerts at 2 minutes and 1 minute remaining"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 300, 150, 300)
+                vibrationPattern = longArrayOf(0, 220, 120, 220)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
@@ -140,24 +140,44 @@ class BlockerForegroundService : Service() {
         }
     }
 
-    private fun getAppName(packageName: String): String {
-        return try {
-            val pm = packageManager
-            val info = pm.getApplicationInfo(packageName, 0)
-            pm.getApplicationLabel(info).toString()
-        } catch (e: Exception) {
-            packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+    private fun dismissWarningNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        nm?.cancel(WARNING_NOTIFICATION_ID)
+    }
+
+    private fun buildGraceActionPendingIntent(
+        targetPackage: String,
+        minutes: Int,
+        requestCode: Int
+    ): PendingIntent {
+        val actionIntent = Intent(this, GraceExtensionReceiver::class.java).apply {
+            action = GraceExtensionReceiver.ACTION_EXTEND_GRACE
+            putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, targetPackage)
+            putExtra(GraceExtensionReceiver.EXTRA_NOTIFICATION_ID, WARNING_NOTIFICATION_ID)
+            putExtra(GraceExtensionReceiver.EXTRA_MINUTES, minutes)
         }
+        return PendingIntent.getBroadcast(
+            this,
+            requestCode,
+            actionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun sendWarningNotification(targetPackage: String, minsLeft: Int) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        val appName = getAppName(targetPackage)
+        val appName = AppNameResolver.getAppName(this, targetPackage)
+        val canExtend = BlockerStorage.canClaimGrace(this, targetPackage)
+        val allow2 = BlockerStorage.isExtra2MinEnabled(this)
+        val allow5 = BlockerStorage.isExtra5MinEnabled(this)
+
+        val defaultExtraMins = if (allow2) 2 else if (allow5) 5 else 2
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(GraceExtensionReceiver.EXTRA_OPEN_FRICTION, true)
+            putExtra(GraceExtensionReceiver.EXTRA_OPEN_FRICTION, canExtend)
             putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, targetPackage)
+            putExtra(GraceExtensionReceiver.EXTRA_MINUTES, defaultExtraMins)
         }
         val contentPendingIntent = PendingIntent.getActivity(
             this,
@@ -166,43 +186,61 @@ class BlockerForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val actionIntent = Intent(this, GraceExtensionReceiver::class.java).apply {
-            action = GraceExtensionReceiver.ACTION_EXTEND_GRACE
-            putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, targetPackage)
-            putExtra(GraceExtensionReceiver.EXTRA_NOTIFICATION_ID, WARNING_NOTIFICATION_ID)
-        }
-        val actionPendingIntent = PendingIntent.getBroadcast(
-            this,
-            1002,
-            actionIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val title = "$appName: $minsLeft min left"
-        val body = if (minsLeft == 1) {
-            "1 minute left before $appName pauses. Tap below for 2 extra minutes."
+        val title = if (minsLeft == 1) {
+            "$appName • 1 minute remaining"
         } else {
-            "2 minutes left on your timer. Tap below for 2 extra minutes."
+            "$appName • 2 minutes remaining"
         }
 
-        val notification = NotificationCompat.Builder(this, WARNING_CHANNEL_ID)
+        val body = if (!canExtend) {
+            if (minsLeft == 1) {
+                "Final minute before $appName pauses."
+            } else {
+                "2 minutes left on $appName. Extra time was already used this cycle."
+            }
+        } else if (allow2 && allow5) {
+            if (minsLeft == 1) {
+                "1 minute left before $appName pauses. Add time without leaving:"
+            } else {
+                "2 minutes left on your timer. Need +2 or +5 extra minutes?"
+            }
+        } else {
+            "Need $defaultExtraMins more minutes on $appName? Tap below:"
+        }
+
+        val builder = NotificationCompat.Builder(this, WARNING_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(true)
+            .setOngoing(true) // Sticky at the top while user stays inside the app
+            .setOnlyAlertOnce(false)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(contentPendingIntent)
-            .addAction(
-                android.R.drawable.ic_input_add,
-                "+2 Min",
-                actionPendingIntent
-            )
-            .build()
 
-        nm.notify(WARNING_NOTIFICATION_ID, notification)
+        if (canExtend) {
+            if (allow2) {
+                builder.addAction(
+                    android.R.drawable.ic_input_add,
+                    "+2 Min",
+                    buildGraceActionPendingIntent(targetPackage, 2, 1002)
+                )
+            }
+            if (allow5) {
+                builder.addAction(
+                    android.R.drawable.ic_input_add,
+                    "+5 Min",
+                    buildGraceActionPendingIntent(targetPackage, 5, 1005)
+                )
+            }
+        }
+
+        // Play soft warning chime alongside heads-up popup
+        SoundFeedbackManager.play(this, "warning")
+
+        nm.notify(WARNING_NOTIFICATION_ID, builder.build())
     }
 
     private fun buildNotification(contentText: String): Notification {
@@ -217,7 +255,7 @@ class BlockerForegroundService : Service() {
         } else null
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Hourglass Shield")
+            .setContentTitle("Hourglass")
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .setOngoing(true)
@@ -291,7 +329,6 @@ class BlockerForegroundService : Service() {
 
                 if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     activeForegroundPackage = event.packageName
-                    Log.v(TAG, "Event ACTIVITY_RESUMED: ${event.packageName}")
                 }
             }
 
@@ -321,6 +358,7 @@ class BlockerForegroundService : Service() {
         if (!isScreenOn) return
 
         if (!BlockerStorage.isShieldEnabled(this)) {
+            dismissWarningNotification()
             BlockerOverlayManager.hideOverlay(this)
             return
         }
@@ -337,7 +375,7 @@ class BlockerForegroundService : Service() {
                  currentPackage == "com.google.android.packageinstaller" ||
                  currentPackage == "com.android.packageinstaller")) {
                 if (BlockerStorage.isAnyAppLocked(this)) {
-                    Log.w(TAG, "Settings access blocked during active lockdown: $currentPackage")
+                    dismissWarningNotification()
                     BlockerOverlayManager.hideOverlay(this)
                     goToHomeScreen()
                     return
@@ -347,17 +385,18 @@ class BlockerForegroundService : Service() {
             val isGuarded = BlockerStorage.isPackageGuarded(this, currentPackage)
 
             if (isGuarded) {
-                // Record usage for currentPackage (in per_app mode it updates that app's timer; in cumulative mode it updates shared pool)
+                val appLabel = AppNameResolver.getAppName(this, currentPackage)
                 BlockerStorage.recordUsage(this, 1000L, currentPackage)
                 val remainingSeconds = BlockerStorage.getRemainingSeconds(this, currentPackage)
                 val trackingMode = BlockerStorage.getTrackingMode(this)
-
-                Log.d(TAG, "Guarded app active: $currentPackage | Remaining: ${remainingSeconds}s | Mode: $trackingMode")
+                val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Per-App" else "Shared"
 
                 if (remainingSeconds <= 0) {
-                    // Allowance exhausted! Trigger overlay blocker immediately
-                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                    nm?.cancel(WARNING_NOTIFICATION_ID)
+                    dismissWarningNotification()
+                    if (lastLockedPackage != currentPackage) {
+                        lastLockedPackage = currentPackage
+                        SoundFeedbackManager.play(this, "lock")
+                    }
 
                     BlockerOverlayManager.showOverlay(this, currentPackage)
                     val windowRemainingSecs = BlockerStorage.getWindowRemainingSeconds(this, currentPackage)
@@ -365,17 +404,17 @@ class BlockerForegroundService : Service() {
                     val wMins = (windowRemainingSecs % 3600) / 60
                     val wSecs = windowRemainingSecs % 60
                     val countdownStr = if (wHours > 0) "${wHours}h ${wMins}m" else "${wMins}m ${wSecs}s"
-                    val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
-                    updateNotification("Strict Lockdown: Unlocks in $countdownStr [$modeLabel] ($currentPackage)")
+                    updateNotification("$appLabel paused • Reopens in $countdownStr ($modeLabel)")
                 } else {
-                    // Breathe Before Scroll check
+                    lastLockedPackage = null
+
                     if (BlockerStorage.shouldShowBreathe(this, currentPackage)) {
                         BlockerOverlayManager.showBreatheOverlay(this, currentPackage)
                     } else {
                         BlockerOverlayManager.hideOverlay(this)
                     }
 
-                    // Heads-up pop-up warning at 2 minutes and 1 minute remaining
+                    // Sticky heads-up warning triggered twice: at 2 mins remaining AND 1 min remaining
                     if (remainingSeconds in 61..120) {
                         if (BlockerStorage.shouldShow2MinWarning(this, currentPackage)) {
                             BlockerStorage.mark2MinWarningShown(this, currentPackage)
@@ -386,19 +425,23 @@ class BlockerForegroundService : Service() {
                             BlockerStorage.mark1MinWarningShown(this, currentPackage)
                             sendWarningNotification(currentPackage, 1)
                         }
+                    } else {
+                        dismissWarningNotification()
                     }
 
                     val mins = remainingSeconds / 60
                     val secs = remainingSeconds % 60
-                    val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
-                    updateNotification("Allowance: ${mins}m ${secs}s left [$modeLabel] ($currentPackage)")
+                    updateNotification("$appLabel: ${mins}m ${secs}s left ($modeLabel)")
                 }
             } else {
-                // Non-guarded app (e.g., Launcher, Phone, Settings)
+                lastLockedPackage = null
+                dismissWarningNotification()
                 BlockerOverlayManager.hideOverlay(this)
+                updateNotification("Protecting your focus limits")
             }
         } else {
-            // In our own app or launcher/unknown
+            lastLockedPackage = null
+            dismissWarningNotification()
             BlockerOverlayManager.hideOverlay(this)
         }
     }
@@ -417,7 +460,6 @@ class BlockerForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.i(TAG, "BlockerForegroundService onDestroy")
         screenReceiver?.let {
             try {
                 unregisterReceiver(it)
@@ -425,8 +467,7 @@ class BlockerForegroundService : Service() {
             screenReceiver = null
         }
         stopMonitoringLoop()
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        nm?.cancel(WARNING_NOTIFICATION_ID)
+        dismissWarningNotification()
         BlockerOverlayManager.hideOverlay(this)
         isRunning = false
     }

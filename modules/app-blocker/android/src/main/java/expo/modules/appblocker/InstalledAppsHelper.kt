@@ -28,7 +28,8 @@ object InstalledAppsHelper {
             seenPackages.add(pkg)
 
             try {
-                val appName = info.loadLabel(pm).toString()
+                val rawLabel = info.loadLabel(pm).toString()
+                val appName = AppNameResolver.KNOWN_APP_NAMES[pkg] ?: rawLabel
                 val appInfo = info.activityInfo.applicationInfo
                 val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
 
@@ -56,16 +57,16 @@ object InstalledAppsHelper {
     private fun drawableToBase64(drawable: Drawable): String {
         return try {
             val bitmap = if (drawable is BitmapDrawable && drawable.bitmap != null) {
-                Bitmap.createScaledBitmap(drawable.bitmap, 64, 64, true)
+                Bitmap.createScaledBitmap(drawable.bitmap, 96, 96, true)
             } else {
-                val b = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+                val b = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(b)
-                drawable.setBounds(0, 0, 64, 64)
+                drawable.setBounds(0, 0, 96, 96)
                 drawable.draw(canvas)
                 b
             }
             val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 85, stream)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 88, stream)
             val byteArray = stream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {

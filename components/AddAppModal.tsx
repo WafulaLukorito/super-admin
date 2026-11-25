@@ -13,12 +13,25 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { BlockerEngine, MonitoredApp } from '@/services/blockerEngine';
+import { resolveAppName } from '@/constants/appCatalog';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   deviceApps: MonitoredApp[];
   monitoredApps: MonitoredApp[];
+}
+
+function getCategoryLabel(category: MonitoredApp['category']): string {
+  switch (category) {
+    case 'poison':
+    case 'distraction':
+      return 'Social & Video';
+    case 'game':
+      return 'Game';
+    default:
+      return 'App';
+  }
 }
 
 export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Props) {
@@ -37,10 +50,11 @@ export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Pro
   const filteredApps = useMemo(() => {
     const q = query.trim().toLowerCase();
     return deviceApps.filter((app) => {
-      if (q && !app.name.toLowerCase().includes(q) && !app.packageName.toLowerCase().includes(q)) {
+      const displayName = resolveAppName(app.packageName, app.name);
+      if (q && !displayName.toLowerCase().includes(q) && !app.packageName.toLowerCase().includes(q)) {
         return false;
       }
-      if (filter === 'poison') return app.category === 'poison';
+      if (filter === 'poison') return app.category === 'poison' || app.category === 'distraction';
       if (filter === 'game') return app.category === 'game';
       return true;
     });
@@ -148,6 +162,7 @@ export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Pro
           <ScrollView style={styles.list} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
             {filteredApps.map((app) => {
               const isAdded = monitoredSet.has(app.packageName);
+              const friendlyName = resolveAppName(app.packageName, app.name);
               return (
                 <TouchableOpacity
                   key={app.packageName}
@@ -157,12 +172,14 @@ export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Pro
                     <Image source={{ uri: app.icon }} style={styles.appIcon} />
                   ) : (
                     <View style={styles.appIconPlaceholder}>
-                      <Text style={styles.appIconLetter}>{app.name[0] || '?'}</Text>
+                      <Text style={styles.appIconLetter}>{friendlyName[0] || '?'}</Text>
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.appName} numberOfLines={1}>{app.name}</Text>
-                    <Text style={styles.appPkg} numberOfLines={1}>{app.packageName}</Text>
+                    <Text style={styles.appName} numberOfLines={1}>{friendlyName}</Text>
+                    <Text style={styles.appCategory} numberOfLines={1}>
+                      {getCategoryLabel(app.category)}
+                    </Text>
                   </View>
                   <View style={[styles.addPill, isAdded && styles.addedPill]}>
                     <MaterialIcons
@@ -187,7 +204,7 @@ export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Pro
               style={styles.customToggle}
               onPress={() => setShowCustom(!showCustom)}>
               <Text style={styles.customToggleText}>
-                {showCustom ? 'Hide custom package form' : "Can't find an app? Add by package ID"}
+                {showCustom ? 'Hide custom package form' : "Can't find an app? Add manually"}
               </Text>
               <MaterialIcons
                 name={showCustom ? 'expand-less' : 'expand-more'}
@@ -207,7 +224,7 @@ export function AddAppModal({ visible, onClose, deviceApps, monitoredApps }: Pro
                 />
                 <TextInput
                   style={styles.customInput}
-                  placeholder="Package ID (e.g. com.instagram.barcelona)"
+                  placeholder="Android package ID (optional technical ID)"
                   placeholderTextColor="#6E7A75"
                   value={customPkg}
                   onChangeText={setCustomPkg}
@@ -331,14 +348,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#102822',
   },
   appIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 9,
   },
   appIconPlaceholder: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
@@ -353,9 +370,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  appPkg: {
-    fontSize: 10,
+  appCategory: {
+    fontSize: 11,
     color: '#6E7A75',
+    marginTop: 1,
   },
   addPill: {
     flexDirection: 'row',

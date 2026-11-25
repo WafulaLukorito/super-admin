@@ -67,8 +67,51 @@ class AppBlockerModule : Module() {
             BlockerStorage.getAllAppStats(context)
         }
 
-        Function("claimGraceExtension") { packageName: String? ->
-            BlockerStorage.claimGraceExtension(context, packageName)
+        Function("claimGraceExtension") { packageName: String?, minutes: Int? ->
+            BlockerStorage.claimGraceExtension(context, packageName, minutes ?: 2)
+        }
+
+        Function("isGraceClaimed") { packageName: String? ->
+            BlockerStorage.isGraceClaimed(context, packageName)
+        }
+
+        Function("canClaimGrace") { packageName: String? ->
+            BlockerStorage.canClaimGrace(context, packageName)
+        }
+
+        Function("setExtraTimeOptions") { allow2Min: Boolean, allow5Min: Boolean ->
+            BlockerStorage.setExtraTimeOptions(context, allow2Min, allow5Min)
+            true
+        }
+
+        Function("isExtra2MinEnabled") {
+            BlockerStorage.isExtra2MinEnabled(context)
+        }
+
+        Function("isExtra5MinEnabled") {
+            BlockerStorage.isExtra5MinEnabled(context)
+        }
+
+        Function("setSoundEnabled") { enabled: Boolean ->
+            BlockerStorage.setSoundEnabled(context, enabled)
+            true
+        }
+
+        Function("isSoundEnabled") {
+            BlockerStorage.isSoundEnabled(context)
+        }
+
+        Function("playSound") { type: String ->
+            SoundFeedbackManager.play(context, type)
+            true
+        }
+
+        Function("consumePendingGraceRequest") {
+            BlockerStorage.consumePendingGraceRequest(context)
+        }
+
+        Function("resolveAppName") { packageName: String ->
+            AppNameResolver.getAppName(context, packageName)
         }
 
         Function("setFrictionSettings") { enabled: Boolean, type: String, mathDifficulty: String ->
@@ -156,7 +199,7 @@ class AppBlockerModule : Module() {
                 putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, comp)
                 putExtra(
                     DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                    "Hourglass Fortress Mode: Prevents impulsive uninstallation or force-stopping during active blocks."
+                    "Hourglass Fortress Mode: Prevents impulsive uninstallation or force-stopping during active locks."
                 )
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }

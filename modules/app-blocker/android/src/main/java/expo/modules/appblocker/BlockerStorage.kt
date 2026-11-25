@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 
 object BlockerStorage {
-    private const val PREFS_NAME = "super_admin_blocker_prefs"
+    private const val PREFS_NAME = "hourglass_blocker_prefs_v2"
 
     private const val KEY_WINDOW_MINS = "window_minutes"
     private const val KEY_ALLOWANCE_MINS = "allowance_minutes"
@@ -14,6 +14,7 @@ object BlockerStorage {
     private const val KEY_CONSUMED_MILLIS = "consumed_millis"
     private const val KEY_GRACE_CLAIMED = "grace_claimed"
     private const val KEY_GRACE_MILLIS = "grace_millis"
+    private const val KEY_GRACE_MINUTES_GRANTED = "grace_minutes_granted"
     private const val KEY_IS_ENABLED = "is_shield_enabled"
     private const val KEY_TRACKING_MODE = "tracking_mode"
     private const val KEY_FRICTION_ENABLED = "friction_enabled"
@@ -28,6 +29,11 @@ object BlockerStorage {
     private const val KEY_LAST_BREATHE_PREFIX = "last_breathe_ts"
     private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
     private const val KEY_ACTIVE_PROFILE_NAME = "active_profile_name"
+    private const val KEY_EXTRA_2MIN_ENABLED = "extra_2min_enabled"
+    private const val KEY_EXTRA_5MIN_ENABLED = "extra_5min_enabled"
+    private const val KEY_SOUND_ENABLED = "sound_enabled"
+    private const val KEY_PENDING_GRACE_PKG = "pending_grace_pkg"
+    private const val KEY_PENDING_GRACE_MINS = "pending_grace_mins"
 
     const val MODE_CUMULATIVE = "cumulative"
     const val MODE_PER_APP = "per_app"
@@ -36,14 +42,16 @@ object BlockerStorage {
     const val STRICTNESS_DISCIPLINED = "disciplined"
     const val STRICTNESS_FORTRESS = "fortress"
 
+    private const val DEFAULT_WINDOW_MINUTES = 60
+    private const val DEFAULT_ALLOWANCE_MINUTES = 15
+
     private val DEFAULT_BLOCKED_PACKAGES = setOf(
         "com.instagram.android",
         "com.zhiliaoapp.musically",
         "com.google.android.youtube",
-        "com.reddit.frontpage",
         "com.twitter.android",
-        "com.facebook.katana",
-        "com.snapchat.android"
+        "com.reddit.frontpage",
+        "com.facebook.katana"
     )
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -52,12 +60,12 @@ object BlockerStorage {
 
     @Synchronized
     fun getTrackingMode(context: Context): String {
-        return getPrefs(context).getString(KEY_TRACKING_MODE, MODE_CUMULATIVE) ?: MODE_CUMULATIVE
+        return getPrefs(context).getString(KEY_TRACKING_MODE, MODE_PER_APP) ?: MODE_PER_APP
     }
 
     @Synchronized
     fun setTrackingMode(context: Context, mode: String) {
-        val targetMode = if (mode == MODE_PER_APP) MODE_PER_APP else MODE_CUMULATIVE
+        val targetMode = if (mode == MODE_CUMULATIVE) MODE_CUMULATIVE else MODE_PER_APP
         getPrefs(context).edit().putString(KEY_TRACKING_MODE, targetMode).apply()
     }
 
@@ -90,6 +98,14 @@ object BlockerStorage {
             "${KEY_GRACE_MILLIS}_$packageName"
         } else {
             KEY_GRACE_MILLIS
+        }
+    }
+
+    private fun getGraceMinutesGrantedKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_GRACE_MINUTES_GRANTED}_$packageName"
+        } else {
+            KEY_GRACE_MINUTES_GRANTED
         }
     }
 
@@ -146,6 +162,58 @@ object BlockerStorage {
             .putString(KEY_FRICTION_TYPE, type)
             .putString(KEY_MATH_DIFFICULTY, difficulty)
             .apply()
+    }
+
+    @Synchronized
+    fun setExtraTimeOptions(context: Context, allow2Min: Boolean, allow5Min: Boolean) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_EXTRA_2MIN_ENABLED, allow2Min)
+            .putBoolean(KEY_EXTRA_5MIN_ENABLED, allow5Min)
+            .apply()
+    }
+
+    @Synchronized
+    fun isExtra2MinEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_EXTRA_2MIN_ENABLED, true)
+    }
+
+    @Synchronized
+    fun isExtra5MinEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_EXTRA_5MIN_ENABLED, true)
+    }
+
+    @Synchronized
+    fun isSoundEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_SOUND_ENABLED, true)
+    }
+
+    @Synchronized
+    fun setSoundEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply()
+    }
+
+    @Synchronized
+    fun setPendingGraceRequest(context: Context, packageName: String?, minutes: Int) {
+        getPrefs(context).edit()
+            .putString(KEY_PENDING_GRACE_PKG, packageName)
+            .putInt(KEY_PENDING_GRACE_MINS, minutes)
+            .apply()
+    }
+
+    @Synchronized
+    fun consumePendingGraceRequest(context: Context): Map<String, Any?>? {
+        val prefs = getPrefs(context)
+        val mins = prefs.getInt(KEY_PENDING_GRACE_MINS, 0)
+        if (mins <= 0) return null
+        val pkg = prefs.getString(KEY_PENDING_GRACE_PKG, null)
+        prefs.edit()
+            .remove(KEY_PENDING_GRACE_PKG)
+            .remove(KEY_PENDING_GRACE_MINS)
+            .apply()
+        return mapOf(
+            "packageName" to pkg,
+            "minutes" to mins
+        )
     }
 
     @Synchronized
@@ -213,12 +281,12 @@ object BlockerStorage {
 
     @Synchronized
     fun getPositiveRedirectPackage(context: Context): String {
-        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_PKG, "com.amazon.kindle") ?: "com.amazon.kindle"
+        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_PKG, "com.duolingo") ?: "com.duolingo"
     }
 
     @Synchronized
     fun getPositiveRedirectName(context: Context): String {
-        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_NAME, "Kindle") ?: "Kindle"
+        return getPrefs(context).getString(KEY_POSITIVE_REDIRECT_NAME, "Duolingo") ?: "Duolingo"
     }
 
     @Synchronized
@@ -293,7 +361,7 @@ object BlockerStorage {
             .putStringSet(KEY_BLOCKED_PKGS, blockedPackages.toSet())
 
         if (trackingMode != null) {
-            val targetMode = if (trackingMode == MODE_PER_APP) MODE_PER_APP else MODE_CUMULATIVE
+            val targetMode = if (trackingMode == MODE_CUMULATIVE) MODE_CUMULATIVE else MODE_PER_APP
             editor.putString(KEY_TRACKING_MODE, targetMode)
         }
 
@@ -304,7 +372,7 @@ object BlockerStorage {
     @Synchronized
     fun checkAndResetWindowIfNeeded(context: Context, packageName: String? = null) {
         val prefs = getPrefs(context)
-        val windowMins = prefs.getInt(KEY_WINDOW_MINS, 60)
+        val windowMins = prefs.getInt(KEY_WINDOW_MINS, DEFAULT_WINDOW_MINUTES)
         val windowDurationMillis = windowMins * 60 * 1000L
         val currentRealtime = SystemClock.elapsedRealtime()
 
@@ -312,15 +380,16 @@ object BlockerStorage {
         val consumedKey = getConsumedMillisKey(context, packageName)
         val graceClaimedKey = getGraceClaimedKey(context, packageName)
         val graceMillisKey = getGraceMillisKey(context, packageName)
+        val graceMinsKey = getGraceMinutesGrantedKey(context, packageName)
 
-        var blockStart = prefs.getLong(startKey, 0L)
+        val blockStart = prefs.getLong(startKey, 0L)
         if (blockStart == 0L || (currentRealtime - blockStart) >= windowDurationMillis) {
-            // Window expired or not started; start a fresh block window
             prefs.edit()
                 .putLong(startKey, currentRealtime)
                 .putLong(consumedKey, 0L)
                 .putBoolean(graceClaimedKey, false)
                 .putLong(graceMillisKey, 0L)
+                .putInt(graceMinsKey, 0)
                 .putBoolean(getWarning2MinKey(context, packageName), false)
                 .putBoolean(getWarning1MinKey(context, packageName), false)
                 .apply()
@@ -340,7 +409,7 @@ object BlockerStorage {
     fun getRemainingSeconds(context: Context, packageName: String? = null): Int {
         checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, 7)
+        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, DEFAULT_ALLOWANCE_MINUTES)
         val graceMillisKey = getGraceMillisKey(context, packageName)
         val consumedKey = getConsumedMillisKey(context, packageName)
         val graceMillis = prefs.getLong(graceMillisKey, 0L)
@@ -355,7 +424,7 @@ object BlockerStorage {
     fun getWindowRemainingSeconds(context: Context, packageName: String? = null): Int {
         checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val windowMins = prefs.getInt(KEY_WINDOW_MINS, 60)
+        val windowMins = prefs.getInt(KEY_WINDOW_MINS, DEFAULT_WINDOW_MINUTES)
         val windowDurationMillis = windowMins * 60 * 1000L
         val currentRealtime = SystemClock.elapsedRealtime()
         val startKey = getBlockStartKey(context, packageName)
@@ -367,32 +436,54 @@ object BlockerStorage {
 
     @Synchronized
     fun getAllowanceMinutes(context: Context): Int {
-        return getPrefs(context).getInt(KEY_ALLOWANCE_MINS, 7)
+        return getPrefs(context).getInt(KEY_ALLOWANCE_MINS, DEFAULT_ALLOWANCE_MINUTES)
     }
 
     @Synchronized
     fun getWindowMinutes(context: Context): Int {
-        return getPrefs(context).getInt(KEY_WINDOW_MINS, 60)
+        return getPrefs(context).getInt(KEY_WINDOW_MINS, DEFAULT_WINDOW_MINUTES)
     }
 
     @Synchronized
-    fun claimGraceExtension(context: Context, packageName: String? = null): Boolean {
+    fun isGraceClaimed(context: Context, packageName: String? = null): Boolean {
+        checkAndResetWindowIfNeeded(context, packageName)
+        val graceClaimedKey = getGraceClaimedKey(context, packageName)
+        return getPrefs(context).getBoolean(graceClaimedKey, false)
+    }
+
+    @Synchronized
+    fun canClaimGrace(context: Context, packageName: String? = null): Boolean {
+        val allowanceMins = getAllowanceMinutes(context)
+        if (allowanceMins == 0 || getActiveProfileId(context) == "bedtime") {
+            return false
+        }
+        if (!isExtra2MinEnabled(context) && !isExtra5MinEnabled(context)) {
+            return false
+        }
+        return !isGraceClaimed(context, packageName)
+    }
+
+    @Synchronized
+    fun claimGraceExtension(context: Context, packageName: String? = null, minutes: Int = 2): Boolean {
         checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
-        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, 7)
+        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, DEFAULT_ALLOWANCE_MINUTES)
         if (allowanceMins == 0 || getActiveProfileId(context) == "bedtime") {
-            return false // Bedtime lockdown has 0 allowance and no grace extensions permitted
+            return false
         }
         val graceClaimedKey = getGraceClaimedKey(context, packageName)
         val graceMillisKey = getGraceMillisKey(context, packageName)
+        val graceMinsKey = getGraceMinutesGrantedKey(context, packageName)
         val alreadyClaimed = prefs.getBoolean(graceClaimedKey, false)
         if (alreadyClaimed) {
-            return false // Strict anti-tamper: max 1 grace extension per window
+            return false
         }
 
+        val safeMins = if (minutes == 5) 5 else 2
         prefs.edit()
             .putBoolean(graceClaimedKey, true)
-            .putLong(graceMillisKey, 120_000L) // 2 minutes
+            .putLong(graceMillisKey, safeMins * 60_000L)
+            .putInt(graceMinsKey, safeMins)
             .apply()
         return true
     }
@@ -401,19 +492,24 @@ object BlockerStorage {
     fun resetBlock(context: Context, packageName: String? = null): Boolean {
         val prefs = getPrefs(context)
         val currentRealtime = SystemClock.elapsedRealtime()
-        val startKey = getBlockStartKey(context, packageName)
-        val consumedKey = getConsumedMillisKey(context, packageName)
-        val graceClaimedKey = getGraceClaimedKey(context, packageName)
-        val graceMillisKey = getGraceMillisKey(context, packageName)
+        val targets = if (packageName == null && getTrackingMode(context) == MODE_PER_APP) {
+            getBlockedPackages(context).toList() + listOf<String?>(null)
+        } else {
+            listOf(packageName)
+        }
 
-        prefs.edit()
-            .putLong(startKey, currentRealtime)
-            .putLong(consumedKey, 0L)
-            .putBoolean(graceClaimedKey, false)
-            .putLong(graceMillisKey, 0L)
-            .putBoolean(getWarning2MinKey(context, packageName), false)
-            .putBoolean(getWarning1MinKey(context, packageName), false)
-            .apply()
+        val editor = prefs.edit()
+        for (target in targets) {
+            editor
+                .putLong(getBlockStartKey(context, target), currentRealtime)
+                .putLong(getConsumedMillisKey(context, target), 0L)
+                .putBoolean(getGraceClaimedKey(context, target), false)
+                .putLong(getGraceMillisKey(context, target), 0L)
+                .putInt(getGraceMinutesGrantedKey(context, target), 0)
+                .putBoolean(getWarning2MinKey(context, target), false)
+                .putBoolean(getWarning1MinKey(context, target), false)
+        }
+        editor.apply()
         return true
     }
 
@@ -422,19 +518,27 @@ object BlockerStorage {
         val guarded = getBlockedPackages(context)
         val result = mutableListOf<Map<String, Any>>()
         val allowanceMins = getAllowanceMinutes(context)
-        val totalAllowedSecs = allowanceMins * 60
+        val prefs = getPrefs(context)
 
         for (pkg in guarded) {
             val remaining = getRemainingSeconds(context, pkg)
             val windowRemaining = getWindowRemainingSeconds(context, pkg)
+            val graceMillis = prefs.getLong(getGraceMillisKey(context, pkg), 0L)
+            val totalAllowedSecs = (allowanceMins * 60) + (graceMillis / 1000).toInt()
             val consumed = maxOf(0, totalAllowedSecs - remaining)
+            val graceClaimed = prefs.getBoolean(getGraceClaimedKey(context, pkg), false)
+            val graceMinutesGranted = prefs.getInt(getGraceMinutesGrantedKey(context, pkg), 0)
+
             result.add(
                 mapOf(
                     "packageName" to pkg,
+                    "appName" to AppNameResolver.getAppName(context, pkg),
                     "remainingSeconds" to remaining,
                     "windowRemainingSeconds" to windowRemaining,
                     "consumedSeconds" to consumed,
-                    "isLocked" to (remaining <= 0)
+                    "isLocked" to (remaining <= 0),
+                    "graceClaimed" to graceClaimed,
+                    "graceMinutesGranted" to graceMinutesGranted
                 )
             )
         }

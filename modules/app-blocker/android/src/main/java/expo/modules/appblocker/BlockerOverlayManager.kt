@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -15,8 +16,10 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 
 object BlockerOverlayManager {
     private const val TAG = "BlockerOverlayManager"
@@ -62,7 +65,7 @@ object BlockerOverlayManager {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     setBackgroundColor(Color.parseColor("#141414"))
-                    setPadding(50, 50, 50, 50)
+                    setPadding(52, 52, 52, 52)
                 }
 
                 val trackingMode = BlockerStorage.getTrackingMode(context)
@@ -72,6 +75,19 @@ object BlockerOverlayManager {
                 val allowanceMins = BlockerStorage.getAllowanceMinutes(context)
                 val windowMins = BlockerStorage.getWindowMinutes(context)
                 val isBedtime = activeProfileId == "bedtime" || allowanceMins == 0
+                val appFriendlyName = AppNameResolver.getAppName(context, blockedPackageName)
+
+                // Real Android App Icon
+                AppNameResolver.getAppIconDrawable(context, blockedPackageName)?.let { drawable ->
+                    val iconView = ImageView(context).apply {
+                        setImageDrawable(drawable)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                    }
+                    val iconParams = LinearLayout.LayoutParams(128, 128).apply {
+                        setMargins(0, 0, 0, 20)
+                    }
+                    layout.addView(iconView, iconParams)
+                }
 
                 val badge = TextView(context).apply {
                     if (isBedtime) {
@@ -95,28 +111,20 @@ object BlockerOverlayManager {
                 layout.addView(badge)
 
                 val title = TextView(context).apply {
-                    text = if (isBedtime) "Time to Rest" else "Time's Up"
+                    text = if (isBedtime) "Time to Rest" else "$appFriendlyName Paused"
                     setTextColor(Color.WHITE)
                     textSize = 24f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
-                    setPadding(0, 16, 0, 12)
+                    setPadding(0, 14, 0, 10)
                 }
                 layout.addView(title)
-
-                val appFriendlyName = try {
-                    val pm = context.packageManager
-                    val appInfo = pm.getApplicationInfo(blockedPackageName, 0)
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    blockedPackageName
-                }
 
                 val message = TextView(context).apply {
                     text = if (isBedtime) {
                         "$appFriendlyName is paused for the night.\nRest well — your apps unlock in the morning."
                     } else if (isPerApp) {
-                        "You've used your $appFriendlyName time for this cycle.\nOther apps remain available."
+                        "You've used your $appFriendlyName time for this cycle.\nOther guarded apps remain available."
                     } else {
                         "You've reached your limit for this cycle.\n$appFriendlyName and your other guarded apps are paused."
                     }
@@ -137,7 +145,7 @@ object BlockerOverlayManager {
                         setStroke(2, if (isBedtime) Color.parseColor("#3730A3") else Color.parseColor("#2C2C2C"))
                     }
                     background = cardBg
-                    setPadding(36, 28, 36, 28)
+                    setPadding(36, 26, 36, 26)
                 }
 
                 val countdownHeader = TextView(context).apply {
@@ -179,10 +187,11 @@ object BlockerOverlayManager {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 32)
+                    setMargins(0, 0, 0, 28)
                 }
                 layout.addView(countdownCard, cardParams)
 
+                // Return Home CTA
                 val homeButton = Button(context).apply {
                     text = "Return to Home Screen"
                     val btnBg = GradientDrawable().apply {
@@ -203,67 +212,128 @@ object BlockerOverlayManager {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 14)
+                    setMargins(0, 0, 0, 12)
                 }
                 layout.addView(homeButton, homeBtnParams)
 
-                val positivePkg = BlockerStorage.getPositiveRedirectPackage(context)
-                val positiveName = BlockerStorage.getPositiveRedirectName(context)
-
-                val positiveButton = Button(context).apply {
-                    text = "🌱 Positive Alternative: Open $positiveName"
-                    val btnBg = GradientDrawable().apply {
+                // Smart Ranked Positive Alternative CTA (with real app icon if installed, or Play Store prompt)
+                val (positivePkg, positiveName, positiveInstalled) = AppNameResolver.resolvePositiveTarget(context)
+                val positiveRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    val rowBg = GradientDrawable().apply {
                         setColor(Color.parseColor("#102822"))
                         cornerRadius = 16f
                         setStroke(2, Color.parseColor("#1F5E4C"))
                     }
-                    background = btnBg
-                    setTextColor(Color.parseColor("#84E150"))
-                    textSize = 13f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setPadding(30, 20, 30, 20)
+                    background = rowBg
+                    setPadding(28, 22, 28, 22)
                     setOnClickListener {
                         hideOverlay(context)
                         BlockerForegroundService.notifyLeavingBlockedApp()
                         launchPackage(context, positivePkg)
                     }
                 }
+                AppNameResolver.getAppIconDrawable(context, positivePkg)?.let { altDrawable ->
+                    val altIcon = ImageView(context).apply {
+                        setImageDrawable(altDrawable)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                    }
+                    val altIconParams = LinearLayout.LayoutParams(52, 52).apply {
+                        setMargins(0, 0, 16, 0)
+                    }
+                    positiveRow.addView(altIcon, altIconParams)
+                }
+                val positiveText = TextView(context).apply {
+                    text = if (positiveInstalled) {
+                        "Open $positiveName Instead"
+                    } else {
+                        "Get $positiveName on Play Store"
+                    }
+                    setTextColor(Color.parseColor("#84E150"))
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                }
+                positiveRow.addView(positiveText)
+
                 val positiveBtnParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 14)
+                    setMargins(0, 0, 0, 12)
                 }
-                layout.addView(positiveButton, positiveBtnParams)
+                layout.addView(positiveRow, positiveBtnParams)
 
-                val openAppButton = Button(context).apply {
-                    text = if (isBedtime) "Sleep Hours Active" else "Need 2 More Minutes?"
-                    val btnBg = GradientDrawable().apply {
-                        setColor(if (isBedtime) Color.parseColor("#181730") else Color.parseColor("#262626"))
-                        cornerRadius = 16f
-                        setStroke(2, if (isBedtime) Color.parseColor("#3730A3") else Color.parseColor("#2C2C2C"))
+                // Extra Time Options — ONLY shown when extra time is genuinely available in this cycle!
+                val canClaim = BlockerStorage.canClaimGrace(context, blockedPackageName)
+                val allow2 = BlockerStorage.isExtra2MinEnabled(context)
+                val allow5 = BlockerStorage.isExtra5MinEnabled(context)
+
+                if (canClaim) {
+                    val graceRow = LinearLayout(context).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER
                     }
-                    background = btnBg
-                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#2ED3A3"))
-                    setPadding(30, 20, 30, 20)
-                    setOnClickListener {
-                        hideOverlay(context)
-                        BlockerForegroundService.notifyLeavingBlockedApp()
-                        openSuperAdminApp(context)
+                    val graceOptions = mutableListOf<Int>()
+                    if (allow2) graceOptions.add(2)
+                    if (allow5) graceOptions.add(5)
+
+                    graceOptions.forEachIndexed { idx, mins ->
+                        val extBtn = Button(context).apply {
+                            text = if (graceOptions.size == 1) {
+                                "Need $mins More Minutes?"
+                            } else {
+                                "+$mins Min"
+                            }
+                            val btnBg = GradientDrawable().apply {
+                                setColor(Color.parseColor("#262626"))
+                                cornerRadius = 16f
+                                setStroke(2, Color.parseColor("#2C2C2C"))
+                            }
+                            background = btnBg
+                            setTextColor(Color.parseColor("#2ED3A3"))
+                            textSize = 13f
+                            typeface = Typeface.DEFAULT_BOLD
+                            setPadding(20, 20, 20, 20)
+                            setOnClickListener {
+                                handleOverlayExtraTimeTap(context, blockedPackageName, appFriendlyName, mins)
+                            }
+                        }
+                        val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                            if (idx == 0 && graceOptions.size > 1) {
+                                setMargins(0, 0, 10, 0)
+                            }
+                        }
+                        graceRow.addView(extBtn, lp)
                     }
+
+                    val graceRowParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    layout.addView(graceRow, graceRowParams)
+                } else {
+                    // Honest non-actionable notice when grace has already been claimed or bedtime is active
+                    val usedNotice = TextView(context).apply {
+                        text = if (isBedtime) {
+                            "Sleep hours active — extra time unavailable until morning"
+                        } else {
+                            "Extra time already used this cycle"
+                        }
+                        setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#6E7A75"))
+                        textSize = 12f
+                        gravity = Gravity.CENTER
+                        setPadding(16, 16, 16, 12)
+                    }
+                    layout.addView(usedNotice)
                 }
-                val openBtnParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                layout.addView(openAppButton, openBtnParams)
 
                 // Start Live Countdown Loop
                 countdownRunnable = object : Runnable {
                     override fun run() {
                         val remainingSecs = BlockerStorage.getWindowRemainingSeconds(context, blockedPackageName)
                         if (remainingSecs <= 0) {
-                            Log.i(TAG, "Block window reset expired for $blockedPackageName while overlay was open. Auto-dismissing overlay.")
                             hideOverlay(context)
                             return
                         }
@@ -285,7 +355,7 @@ object BlockerOverlayManager {
 
                 windowManager.addView(layout, layoutParams)
                 overlayView = layout
-                Log.i(TAG, "Overlay successfully attached to WindowManager for $blockedPackageName with live countdown")
+                Log.i(TAG, "Overlay attached for $appFriendlyName ($blockedPackageName)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to attach overlay window", e)
                 countdownRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -294,6 +364,34 @@ object BlockerOverlayManager {
                 isShowing = false
                 goToHomeScreen(context)
             }
+        }
+    }
+
+    private fun handleOverlayExtraTimeTap(
+        context: Context,
+        blockedPackageName: String,
+        appFriendlyName: String,
+        minutes: Int
+    ) {
+        if (!BlockerStorage.isFrictionEnabled(context)) {
+            val ok = BlockerStorage.claimGraceExtension(context, blockedPackageName, minutes)
+            if (ok) {
+                SoundFeedbackManager.play(context, "extension")
+                hideOverlay(context)
+                Toast.makeText(
+                    context,
+                    "Added $minutes extra minutes for $appFriendlyName.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                hideOverlay(context)
+                showOverlay(context, blockedPackageName)
+            }
+        } else {
+            BlockerStorage.setPendingGraceRequest(context, blockedPackageName, minutes)
+            hideOverlay(context)
+            BlockerForegroundService.notifyLeavingBlockedApp()
+            openSuperAdminApp(context, blockedPackageName, minutes)
         }
     }
 
@@ -311,7 +409,6 @@ object BlockerOverlayManager {
             try {
                 val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
                 windowManager.removeView(view)
-                Log.i(TAG, "Overlay removed from WindowManager")
             } catch (e: Exception) {
                 Log.e(TAG, "Error removing overlay view", e)
             } finally {
@@ -332,10 +429,15 @@ object BlockerOverlayManager {
         }
     }
 
-    private fun openSuperAdminApp(context: Context) {
+    private fun openSuperAdminApp(context: Context, packageName: String? = null, minutes: Int = 2) {
         try {
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                if (packageName != null) {
+                    putExtra(GraceExtensionReceiver.EXTRA_OPEN_FRICTION, true)
+                    putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, packageName)
+                    putExtra(GraceExtensionReceiver.EXTRA_MINUTES, minutes)
+                }
             }
             if (launchIntent != null) {
                 context.startActivity(launchIntent)
@@ -356,13 +458,23 @@ object BlockerOverlayManager {
             if (launchIntent != null) {
                 context.startActivity(launchIntent)
             } else {
-                val storeIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=$targetPackage")).apply {
+                val storeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$targetPackage")).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 context.startActivity(storeIntent)
             }
         } catch (e: Exception) {
-            goToHomeScreen(context)
+            try {
+                val webIntent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=$targetPackage")
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(webIntent)
+            } catch (_: Exception) {
+                goToHomeScreen(context)
+            }
         }
     }
 
@@ -402,6 +514,19 @@ object BlockerOverlayManager {
                     setPadding(50, 50, 50, 50)
                 }
 
+                val appFriendlyName = AppNameResolver.getAppName(context, guardedPackageName)
+
+                AppNameResolver.getAppIconDrawable(context, guardedPackageName)?.let { drawable ->
+                    val iconView = ImageView(context).apply {
+                        setImageDrawable(drawable)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                    }
+                    val iconParams = LinearLayout.LayoutParams(108, 108).apply {
+                        setMargins(0, 0, 0, 16)
+                    }
+                    layout.addView(iconView, iconParams)
+                }
+
                 val badge = TextView(context).apply {
                     text = "MINDFUL PAUSE"
                     setTextColor(Color.parseColor("#2ED3A3"))
@@ -412,21 +537,13 @@ object BlockerOverlayManager {
                 }
                 layout.addView(badge)
 
-                val appFriendlyName = try {
-                    val pm = context.packageManager
-                    val appInfo = pm.getApplicationInfo(guardedPackageName, 0)
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    guardedPackageName
-                }
-
                 val title = TextView(context).apply {
                     text = "Opening $appFriendlyName?"
                     setTextColor(Color.WHITE)
                     textSize = 22f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
-                    setPadding(0, 14, 0, 8)
+                    setPadding(0, 12, 0, 8)
                 }
                 layout.addView(title)
 
@@ -439,7 +556,6 @@ object BlockerOverlayManager {
                 }
                 layout.addView(prompt)
 
-                // Breath Circle
                 val circle = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
@@ -475,7 +591,9 @@ object BlockerOverlayManager {
 
                 layout.addView(circle, circleParams)
 
-                // Close App Button
+                // Soft calming tone as breathe begins
+                SoundFeedbackManager.play(context, "breathe")
+
                 val closeAppButton = Button(context).apply {
                     text = "Skip Opening $appFriendlyName"
                     val btnBg = GradientDrawable().apply {
@@ -501,9 +619,8 @@ object BlockerOverlayManager {
                 }
                 layout.addView(closeAppButton, closeBtnParams)
 
-                // Continue Button (Enabled after countdown)
                 val proceedButton = Button(context).apply {
-                    text = "Pause & Proceed (Wait 10s...)"
+                    text = "Wait 10s to Continue..."
                     val btnBg = GradientDrawable().apply {
                         setColor(Color.parseColor("#262626"))
                         cornerRadius = 16f
@@ -529,8 +646,9 @@ object BlockerOverlayManager {
                     override fun run() {
                         secondsLeft--
                         if (secondsLeft <= 0) {
+                            SoundFeedbackManager.play(context, "success")
                             breathCountdown.text = "✓"
-                            breathPhase.text = "Deliberate"
+                            breathPhase.text = "Centered"
                             proceedButton.isEnabled = true
                             proceedButton.text = "Continue to $appFriendlyName"
                             proceedButton.setTextColor(Color.parseColor("#2ED3A3"))
@@ -547,7 +665,11 @@ object BlockerOverlayManager {
                         when (secondsLeft) {
                             in 7..10 -> breathPhase.text = "Inhale slowly..."
                             in 5..6 -> breathPhase.text = "Hold breath..."
-                            else -> breathPhase.text = "Exhale release..."
+                            4 -> {
+                                breathPhase.text = "Exhale gently..."
+                                SoundFeedbackManager.play(context, "breathe")
+                            }
+                            else -> breathPhase.text = "Exhale gently..."
                         }
 
                         mainHandler.postDelayed(this, 1000)

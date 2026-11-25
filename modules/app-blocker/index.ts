@@ -10,10 +10,18 @@ export interface InstalledApp {
 
 export interface AppUsageStat {
   packageName: string;
+  appName?: string;
   remainingSeconds: number;
   windowRemainingSeconds: number;
   consumedSeconds: number;
   isLocked: boolean;
+  graceClaimed?: boolean;
+  graceMinutesGranted?: number;
+}
+
+export interface PendingGraceRequest {
+  packageName: string | null;
+  minutes: number;
 }
 
 interface AppBlockerNativeModule {
@@ -26,7 +34,17 @@ interface AppBlockerNativeModule {
   getTrackingMode(): string;
   setTrackingMode(mode: string): boolean;
   getAllAppStats(): AppUsageStat[];
-  claimGraceExtension(packageName?: string): boolean;
+  claimGraceExtension(packageName?: string, minutes?: number): boolean;
+  isGraceClaimed(packageName?: string): boolean;
+  canClaimGrace(packageName?: string): boolean;
+  setExtraTimeOptions(allow2Min: boolean, allow5Min: boolean): boolean;
+  isExtra2MinEnabled(): boolean;
+  isExtra5MinEnabled(): boolean;
+  setSoundEnabled(enabled: boolean): boolean;
+  isSoundEnabled(): boolean;
+  playSound(type: string): boolean;
+  consumePendingGraceRequest(): PendingGraceRequest | null;
+  resolveAppName(packageName: string): string;
   setFrictionSettings(enabled: boolean, type: string, mathDifficulty: string): boolean;
   isFrictionEnabled(): boolean;
   getFrictionType(): string;
@@ -82,7 +100,7 @@ export const AppBlocker = {
   },
 
   getTrackingMode(): string {
-    return NativeAppBlocker?.getTrackingMode() ?? 'cumulative';
+    return NativeAppBlocker?.getTrackingMode() ?? 'per_app';
   },
 
   setTrackingMode(mode: string): boolean {
@@ -93,8 +111,48 @@ export const AppBlocker = {
     return NativeAppBlocker?.getAllAppStats() ?? [];
   },
 
-  claimGraceExtension(packageName?: string): boolean {
-    return NativeAppBlocker?.claimGraceExtension(packageName) ?? false;
+  claimGraceExtension(packageName?: string, minutes = 2): boolean {
+    return NativeAppBlocker?.claimGraceExtension(packageName, minutes) ?? false;
+  },
+
+  isGraceClaimed(packageName?: string): boolean {
+    return NativeAppBlocker?.isGraceClaimed(packageName) ?? false;
+  },
+
+  canClaimGrace(packageName?: string): boolean {
+    return NativeAppBlocker?.canClaimGrace(packageName) ?? false;
+  },
+
+  setExtraTimeOptions(allow2Min: boolean, allow5Min: boolean): boolean {
+    return NativeAppBlocker?.setExtraTimeOptions(allow2Min, allow5Min) ?? false;
+  },
+
+  isExtra2MinEnabled(): boolean {
+    return NativeAppBlocker?.isExtra2MinEnabled() ?? true;
+  },
+
+  isExtra5MinEnabled(): boolean {
+    return NativeAppBlocker?.isExtra5MinEnabled() ?? true;
+  },
+
+  setSoundEnabled(enabled: boolean): boolean {
+    return NativeAppBlocker?.setSoundEnabled(enabled) ?? false;
+  },
+
+  isSoundEnabled(): boolean {
+    return NativeAppBlocker?.isSoundEnabled() ?? true;
+  },
+
+  playSound(type: string): boolean {
+    return NativeAppBlocker?.playSound(type) ?? false;
+  },
+
+  consumePendingGraceRequest(): PendingGraceRequest | null {
+    return NativeAppBlocker?.consumePendingGraceRequest() ?? null;
+  },
+
+  resolveAppName(packageName: string): string {
+    return NativeAppBlocker?.resolveAppName(packageName) ?? packageName;
   },
 
   setFrictionSettings(enabled: boolean, type: string, mathDifficulty: string): boolean {
@@ -110,7 +168,7 @@ export const AppBlocker = {
   },
 
   getMathDifficulty(): string {
-    return NativeAppBlocker?.getMathDifficulty() ?? 'easy';
+    return NativeAppBlocker?.getMathDifficulty() ?? 'medium';
   },
 
   getStrictnessLevel(): string {
@@ -130,11 +188,11 @@ export const AppBlocker = {
   },
 
   getPositiveRedirectPackage(): string {
-    return NativeAppBlocker?.getPositiveRedirectPackage() ?? 'com.amazon.kindle';
+    return NativeAppBlocker?.getPositiveRedirectPackage() ?? 'com.duolingo';
   },
 
   getPositiveRedirectName(): string {
-    return NativeAppBlocker?.getPositiveRedirectName() ?? 'Kindle';
+    return NativeAppBlocker?.getPositiveRedirectName() ?? 'Duolingo';
   },
 
   setPositiveRedirect(packageName: string, appName: string): boolean {
