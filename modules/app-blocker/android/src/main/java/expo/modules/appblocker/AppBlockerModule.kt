@@ -67,6 +67,23 @@ class AppBlockerModule : Module() {
             BlockerStorage.claimGraceExtension(context, packageName)
         }
 
+        Function("setFrictionSettings") { enabled: Boolean, type: String, mathDifficulty: String ->
+            BlockerStorage.setFrictionSettings(context, enabled, type, mathDifficulty)
+            true
+        }
+
+        Function("isFrictionEnabled") {
+            BlockerStorage.isFrictionEnabled(context)
+        }
+
+        Function("getFrictionType") {
+            BlockerStorage.getFrictionType(context)
+        }
+
+        Function("getMathDifficulty") {
+            BlockerStorage.getMathDifficulty(context)
+        }
+
         Function("resetBlock") { packageName: String? ->
             BlockerStorage.resetBlock(context, packageName)
         }

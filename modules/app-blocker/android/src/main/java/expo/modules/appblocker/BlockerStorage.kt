@@ -16,6 +16,11 @@ object BlockerStorage {
     private const val KEY_GRACE_MILLIS = "grace_millis"
     private const val KEY_IS_ENABLED = "is_shield_enabled"
     private const val KEY_TRACKING_MODE = "tracking_mode"
+    private const val KEY_FRICTION_ENABLED = "friction_enabled"
+    private const val KEY_FRICTION_TYPE = "friction_type"
+    private const val KEY_MATH_DIFFICULTY = "math_difficulty"
+    private const val KEY_WARNING_2MIN = "warning_2min_shown"
+    private const val KEY_WARNING_1MIN = "warning_1min_shown"
 
     const val MODE_CUMULATIVE = "cumulative"
     const val MODE_PER_APP = "per_app"
@@ -77,6 +82,85 @@ object BlockerStorage {
         }
     }
 
+    private fun getWarning2MinKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_WARNING_2MIN}_$packageName"
+        } else {
+            KEY_WARNING_2MIN
+        }
+    }
+
+    private fun getWarning1MinKey(context: Context, packageName: String?): String {
+        return if (packageName != null && getTrackingMode(context) == MODE_PER_APP) {
+            "${KEY_WARNING_1MIN}_$packageName"
+        } else {
+            KEY_WARNING_1MIN
+        }
+    }
+
+    @Synchronized
+    fun isFrictionEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_FRICTION_ENABLED, true)
+    }
+
+    @Synchronized
+    fun setFrictionEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_FRICTION_ENABLED, enabled).apply()
+    }
+
+    @Synchronized
+    fun getFrictionType(context: Context): String {
+        return getPrefs(context).getString(KEY_FRICTION_TYPE, "math") ?: "math"
+    }
+
+    @Synchronized
+    fun setFrictionType(context: Context, type: String) {
+        getPrefs(context).edit().putString(KEY_FRICTION_TYPE, type).apply()
+    }
+
+    @Synchronized
+    fun getMathDifficulty(context: Context): String {
+        return getPrefs(context).getString(KEY_MATH_DIFFICULTY, "easy") ?: "easy"
+    }
+
+    @Synchronized
+    fun setMathDifficulty(context: Context, difficulty: String) {
+        getPrefs(context).edit().putString(KEY_MATH_DIFFICULTY, difficulty).apply()
+    }
+
+    @Synchronized
+    fun setFrictionSettings(context: Context, enabled: Boolean, type: String, difficulty: String) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_FRICTION_ENABLED, enabled)
+            .putString(KEY_FRICTION_TYPE, type)
+            .putString(KEY_MATH_DIFFICULTY, difficulty)
+            .apply()
+    }
+
+    @Synchronized
+    fun shouldShow2MinWarning(context: Context, packageName: String?): Boolean {
+        val key = getWarning2MinKey(context, packageName)
+        return !getPrefs(context).getBoolean(key, false)
+    }
+
+    @Synchronized
+    fun mark2MinWarningShown(context: Context, packageName: String?) {
+        val key = getWarning2MinKey(context, packageName)
+        getPrefs(context).edit().putBoolean(key, true).apply()
+    }
+
+    @Synchronized
+    fun shouldShow1MinWarning(context: Context, packageName: String?): Boolean {
+        val key = getWarning1MinKey(context, packageName)
+        return !getPrefs(context).getBoolean(key, false)
+    }
+
+    @Synchronized
+    fun mark1MinWarningShown(context: Context, packageName: String?) {
+        val key = getWarning1MinKey(context, packageName)
+        getPrefs(context).edit().putBoolean(key, true).apply()
+    }
+
     @Synchronized
     fun isShieldEnabled(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_IS_ENABLED, true)
@@ -134,6 +218,8 @@ object BlockerStorage {
                 .putLong(consumedKey, 0L)
                 .putBoolean(graceClaimedKey, false)
                 .putLong(graceMillisKey, 0L)
+                .putBoolean(getWarning2MinKey(context, packageName), false)
+                .putBoolean(getWarning1MinKey(context, packageName), false)
                 .apply()
         }
     }
@@ -218,6 +304,8 @@ object BlockerStorage {
             .putLong(consumedKey, 0L)
             .putBoolean(graceClaimedKey, false)
             .putLong(graceMillisKey, 0L)
+            .putBoolean(getWarning2MinKey(context, packageName), false)
+            .putBoolean(getWarning1MinKey(context, packageName), false)
             .apply()
         return true
     }

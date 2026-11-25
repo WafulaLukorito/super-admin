@@ -29,6 +29,9 @@ class BlockerForegroundService : Service() {
         private const val NOTIFICATION_ID = 9182
         private const val CHANNEL_ID = "super_admin_fgs_channel"
         private const val CHANNEL_NAME = "Super Admin Background Monitor"
+        private const val WARNING_CHANNEL_ID = "super_admin_heads_up_channel"
+        private const val WARNING_CHANNEL_NAME = "Super Admin Warning Alerts"
+        private const val WARNING_NOTIFICATION_ID = 9183
 
         var isRunning = false
             private set
@@ -110,6 +113,8 @@ class BlockerForegroundService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
@@ -118,9 +123,86 @@ class BlockerForegroundService : Service() {
                 description = "Monitors app usage and enforces block window allowances"
                 setShowBadge(false)
             }
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
+
+            val warningChannel = NotificationChannel(
+                WARNING_CHANNEL_ID,
+                WARNING_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "High-priority heads-up popups when app allowance is running low"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 150, 300)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(warningChannel)
         }
+    }
+
+    private fun getAppName(packageName: String): String {
+        return try {
+            val pm = packageManager
+            val info = pm.getApplicationInfo(packageName, 0)
+            pm.getApplicationLabel(info).toString()
+        } catch (e: Exception) {
+            packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    private fun sendWarningNotification(targetPackage: String, minsLeft: Int) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val appName = getAppName(targetPackage)
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(GraceExtensionReceiver.EXTRA_OPEN_FRICTION, true)
+            putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, targetPackage)
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            this,
+            1001,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val actionIntent = Intent(this, GraceExtensionReceiver::class.java).apply {
+            action = GraceExtensionReceiver.ACTION_EXTEND_GRACE
+            putExtra(GraceExtensionReceiver.EXTRA_PACKAGE_NAME, targetPackage)
+            putExtra(GraceExtensionReceiver.EXTRA_NOTIFICATION_ID, WARNING_NOTIFICATION_ID)
+        }
+        val actionPendingIntent = PendingIntent.getBroadcast(
+            this,
+            1002,
+            actionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = "$appName: $minsLeft min remaining!"
+        val body = if (minsLeft == 1) {
+            "Only 1 minute left before $appName locks. Tap below to claim +2m extension."
+        } else {
+            "2 minutes left of your allowance. Tap below to claim +2m extension."
+        }
+
+        val notification = NotificationCompat.Builder(this, WARNING_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(contentPendingIntent)
+            .addAction(
+                android.R.drawable.ic_input_add,
+                "+2m Extension",
+                actionPendingIntent
+            )
+            .build()
+
+        nm.notify(WARNING_NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification(contentText: String): Notification {
@@ -259,6 +341,9 @@ class BlockerForegroundService : Service() {
 
                 if (remainingSeconds <= 0) {
                     // Allowance exhausted! Trigger overlay blocker immediately
+                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                    nm?.cancel(WARNING_NOTIFICATION_ID)
+
                     BlockerOverlayManager.showOverlay(this, currentPackage)
                     val windowRemainingSecs = BlockerStorage.getWindowRemainingSeconds(this, currentPackage)
                     val wHours = windowRemainingSecs / 3600
@@ -269,6 +354,20 @@ class BlockerForegroundService : Service() {
                     updateNotification("Strict Lockdown: Unlocks in $countdownStr [$modeLabel] ($currentPackage)")
                 } else {
                     BlockerOverlayManager.hideOverlay(this)
+
+                    // Heads-up pop-up warning at 2 minutes and 1 minute remaining
+                    if (remainingSeconds in 61..120) {
+                        if (BlockerStorage.shouldShow2MinWarning(this, currentPackage)) {
+                            BlockerStorage.mark2MinWarningShown(this, currentPackage)
+                            sendWarningNotification(currentPackage, 2)
+                        }
+                    } else if (remainingSeconds in 1..60) {
+                        if (BlockerStorage.shouldShow1MinWarning(this, currentPackage)) {
+                            BlockerStorage.mark1MinWarningShown(this, currentPackage)
+                            sendWarningNotification(currentPackage, 1)
+                        }
+                    }
+
                     val mins = remainingSeconds / 60
                     val secs = remainingSeconds % 60
                     val modeLabel = if (trackingMode == BlockerStorage.MODE_PER_APP) "Isolated" else "Pool"
@@ -294,6 +393,8 @@ class BlockerForegroundService : Service() {
             screenReceiver = null
         }
         stopMonitoringLoop()
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        nm?.cancel(WARNING_NOTIFICATION_ID)
         BlockerOverlayManager.hideOverlay(this)
         isRunning = false
     }

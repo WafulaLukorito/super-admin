@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppBlocker, { AppUsageStat } from '../modules/app-blocker';
 
 export type TrackingMode = 'cumulative' | 'per_app';
+export type FrictionType = 'math' | 'pledge';
+export type MathDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface MonitoredApp {
   id: string;
@@ -33,6 +35,9 @@ export interface BlockerState {
   usedSecondsInBlock: number;  // seconds consumed out of allowance
   graceClaimedInCurrentBlock: boolean; // max 1 extension per block
   graceSecondsRemaining: number;
+  frictionEnabled: boolean;           // true = cognitive challenge required | false = direct instant +2m extension
+  frictionType: FrictionType;         // 'math' | 'pledge'
+  mathDifficulty: MathDifficulty;     // 'easy' | 'medium' | 'hard'
   windowRemainingSeconds: number; // live seconds until rolling block window resets
   monitoredApps: MonitoredApp[];
   auditLogs: AuditEvent[];
@@ -61,6 +66,9 @@ const INITIAL_STATE: BlockerState = {
   usedSecondsInBlock: 0,
   graceClaimedInCurrentBlock: false,
   graceSecondsRemaining: 0,
+  frictionEnabled: true,
+  frictionType: 'math',
+  mathDifficulty: 'easy',
   windowRemainingSeconds: 3600,
   monitoredApps: DEFAULT_APPS,
   auditLogs: [
@@ -234,6 +242,11 @@ export class BlockerEngine {
         blockedPkgs,
         this.state.trackingMode
       );
+      AppBlocker.setFrictionSettings(
+        this.state.frictionEnabled,
+        this.state.frictionType,
+        this.state.mathDifficulty
+      );
     } catch (e) {
       console.warn('Sync with native daemon error:', e);
     }
@@ -310,14 +323,40 @@ export class BlockerEngine {
     this.state.graceSecondsRemaining = 120; // 2 minutes
     this.addAuditLog(
       'extension',
-      '2-Minute Friction Grace Granted',
-      'User passed cognitive challenge. Hard lockdown postponed by 120 seconds.'
+      this.state.frictionEnabled ? '2-Minute Friction Grace Granted' : 'Direct 2-Minute Extension Granted',
+      this.state.frictionEnabled
+        ? 'User completed cognitive challenge. Hard lockdown postponed by 120 seconds.'
+        : 'User claimed direct grace extension. Hard lockdown postponed by 120 seconds.'
     );
     this.notify();
     return {
       success: true,
       message: '2-minute grace period active. Strict lockdown engages immediately after.',
     };
+  }
+
+  static setFrictionEnabled(enabled: boolean): void {
+    this.state.frictionEnabled = enabled;
+    this.addAuditLog(
+      'reset',
+      enabled ? 'Friction Challenge Required' : 'Direct Extension Mode Activated',
+      enabled
+        ? `Grace extensions require completing a ${this.state.frictionType} challenge.`
+        : 'Grace extensions can be claimed directly without cognitive challenges.'
+    );
+    this.notify();
+  }
+
+  static setFrictionType(type: FrictionType): void {
+    this.state.frictionType = type;
+    this.addAuditLog('reset', 'Friction Challenge Type Updated', `Friction type set to: ${type}`);
+    this.notify();
+  }
+
+  static setMathDifficulty(difficulty: MathDifficulty): void {
+    this.state.mathDifficulty = difficulty;
+    this.addAuditLog('reset', 'Math Difficulty Updated', `Difficulty set to: ${difficulty.toUpperCase()}`);
+    this.notify();
   }
 
   static addAuditLog(type: AuditEvent['type'], title: string, detail: string): void {

@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode } from '@/services/blockerEngine';
+import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode, FrictionType, MathDifficulty } from '@/services/blockerEngine';
 
 export default function RulesScreen() {
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
@@ -63,6 +63,24 @@ export default function RulesScreen() {
         ? 'Per-App Isolated Mode: Each app has its own separate timer and window. Using Twitter will not count against Instagram.'
         : 'Cumulative Shared Pool: All guarded apps share a combined allowance pool. Reaching limit locks all guarded apps.'
     );
+  };
+
+  const handleToggleFriction = (enabled: boolean) => {
+    BlockerEngine.setFrictionEnabled(enabled);
+    Alert.alert(
+      enabled ? 'Cognitive Friction Gate Enabled' : 'Direct Extension Mode Activated',
+      enabled
+        ? `Grace extensions require completing a ${state.frictionType} challenge.`
+        : 'Tapping "+2m Extension" (in top pop-up notification or in the app) immediately extends your time by 2 minutes without asking you to do anything.'
+    );
+  };
+
+  const handleSelectFrictionType = (type: FrictionType) => {
+    BlockerEngine.setFrictionType(type);
+  };
+
+  const handleSelectMathDifficulty = (diff: MathDifficulty) => {
+    BlockerEngine.setMathDifficulty(diff);
   };
 
   const handleToggleApp = (id: string) => {
@@ -259,6 +277,138 @@ export default function RulesScreen() {
               Each app gets its own separate {state.allowanceMinutes}m limit and {state.windowMinutes}m rolling window. Using Twitter for {state.allowanceMinutes}m locks Twitter, but Instagram retains its own full allowance.
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Grace Extension & Cognitive Friction Settings */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSection}>GRACE EXTENSION & FRICTION</Text>
+            <View style={[styles.currentBadge, state.frictionEnabled ? styles.modeBadgeCumul : styles.currentBadgeDirect]}>
+              <Text style={styles.currentBadgeText}>
+                {state.frictionEnabled ? 'FRICTION GATE' : 'DIRECT (+2M)'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.cardExplainer}>
+            At 2m and 1m remaining, you get a top pop-up notification with a +2m extension button. Configure how extensions unlock:
+          </Text>
+
+          {/* Option 1: Direct Instant Extension */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              !state.frictionEnabled && styles.modeCardActive,
+            ]}
+            onPress={() => handleToggleFriction(false)}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="bolt"
+                  size={20}
+                  color={!state.frictionEnabled ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Instant Extension (No Friction)</Text>
+              </View>
+              <View style={[styles.radioCircle, !state.frictionEnabled && styles.radioCircleActive]}>
+                {!state.frictionEnabled && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Pressing '+2m Extension' in the top notification banner or in the app immediately adds 2 minutes with zero challenge required.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Option 2: Cognitive Challenge Required */}
+          <TouchableOpacity
+            style={[
+              styles.modeCard,
+              state.frictionEnabled && styles.modeCardActive,
+            ]}
+            onPress={() => handleToggleFriction(true)}>
+            <View style={styles.modeCardHeader}>
+              <View style={styles.modeIconRow}>
+                <MaterialIcons
+                  name="psychology"
+                  size={20}
+                  color={state.frictionEnabled ? '#38BDF8' : '#94A3B8'}
+                />
+                <Text style={styles.modeCardTitle}>Cognitive Friction Gate</Text>
+              </View>
+              <View style={[styles.radioCircle, state.frictionEnabled && styles.radioCircleActive]}>
+                {state.frictionEnabled && <View style={styles.radioDot} />}
+              </View>
+            </View>
+            <Text style={styles.modeCardDesc}>
+              Requires completing a cognitive challenge before the 2-minute extension is granted, breaking compulsive reflex loops.
+            </Text>
+          </TouchableOpacity>
+
+          {/* Friction Customizer Sub-Card */}
+          {state.frictionEnabled && (
+            <View style={styles.frictionSubCard}>
+              <Text style={styles.frictionSubSection}>SELECT CHALLENGE TYPE</Text>
+              <View style={styles.challengeTypeRow}>
+                <TouchableOpacity
+                  style={[styles.challengeTypeBtn, state.frictionType === 'math' && styles.challengeTypeBtnActive]}
+                  onPress={() => handleSelectFrictionType('math')}>
+                  <MaterialIcons
+                    name="calculate"
+                    size={16}
+                    color={state.frictionType === 'math' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text style={[styles.challengeTypeBtnText, state.frictionType === 'math' && styles.challengeTypeBtnTextActive]}>
+                    Math Problem
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.challengeTypeBtn, state.frictionType === 'pledge' && styles.challengeTypeBtnActive]}
+                  onPress={() => handleSelectFrictionType('pledge')}>
+                  <MaterialIcons
+                    name="edit-note"
+                    size={16}
+                    color={state.frictionType === 'pledge' ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text style={[styles.challengeTypeBtnText, state.frictionType === 'pledge' && styles.challengeTypeBtnTextActive]}>
+                    Mindful Pledge
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Math Difficulty Selector */}
+              {state.frictionType === 'math' && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={styles.frictionSubSection}>MATH DIFFICULTY LEVEL</Text>
+                  <View style={styles.difficultyCardsRow}>
+                    {(['easy', 'medium', 'hard'] as MathDifficulty[]).map((d) => {
+                      const isActive = state.mathDifficulty === d;
+                      const subtitle =
+                        d === 'easy'
+                          ? 'Simple 1-digit sums (e.g. 8 + 7)'
+                          : d === 'medium'
+                          ? 'Multiplication & sums (e.g. 7 × 8)'
+                          : 'Two-step equations (e.g. (14 × 3) + 15)';
+
+                      return (
+                        <TouchableOpacity
+                          key={d}
+                          style={[styles.difficultyOptionCard, isActive && styles.difficultyOptionCardActive]}
+                          onPress={() => handleSelectMathDifficulty(d)}>
+                          <View style={styles.difficultyOptionTop}>
+                            <Text style={[styles.difficultyOptionTitle, isActive && styles.difficultyOptionTitleActive]}>
+                              {d.toUpperCase()}
+                            </Text>
+                            {isActive && <MaterialIcons name="check" size={14} color="#38BDF8" />}
+                          </View>
+                          <Text style={styles.difficultyOptionDesc}>{subtitle}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Installed Apps Manager */}
@@ -767,5 +917,86 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
+  },
+  currentBadgeDirect: {
+    borderColor: '#10B981',
+  },
+  frictionSubCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    marginTop: 6,
+  },
+  frictionSubSection: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  challengeTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  challengeTypeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1E293B',
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  challengeTypeBtnActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#38BDF8',
+  },
+  challengeTypeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  challengeTypeBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  difficultyCardsRow: {
+    flexDirection: 'column',
+    gap: 6,
+  },
+  difficultyOptionCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  difficultyOptionCardActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0B233E',
+  },
+  difficultyOptionTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  difficultyOptionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  difficultyOptionTitleActive: {
+    color: '#38BDF8',
+  },
+  difficultyOptionDesc: {
+    fontSize: 11,
+    color: '#64748B',
   },
 });

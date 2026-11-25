@@ -80,6 +80,24 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleClaimGrace = () => {
+    if (state.graceClaimedInCurrentBlock) {
+      Alert.alert('Extension Limit', 'Strict anti-tamper rule: Maximum 1 extension allowed per block window.');
+      return;
+    }
+
+    if (!state.frictionEnabled) {
+      const result = BlockerEngine.claimFrictionGrace();
+      if (result.success) {
+        Alert.alert('Extension Granted', result.message);
+      } else {
+        Alert.alert('Extension Denied', result.message);
+      }
+    } else {
+      setModalVisible(true);
+    }
+  };
+
   const displayedApps = dashboardFilter === 'timed' ? timedApps : state.monitoredApps;
 
   return (
@@ -243,31 +261,31 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* Grace Extension Button (Cumulative Mode) */}
-        {isCumulative && (
-          <TouchableOpacity
+        {/* Grace Extension Button */}
+        <TouchableOpacity
+          style={[
+            styles.graceButton,
+            state.graceClaimedInCurrentBlock ? styles.graceButtonDisabled : null,
+          ]}
+          disabled={state.graceClaimedInCurrentBlock}
+          onPress={handleClaimGrace}>
+          <MaterialIcons
+            name={state.frictionEnabled ? 'psychology' : 'bolt'}
+            size={20}
+            color={state.graceClaimedInCurrentBlock ? '#64748B' : '#FFFFFF'}
+          />
+          <Text
             style={[
-              styles.graceButton,
-              state.graceClaimedInCurrentBlock ? styles.graceButtonDisabled : null,
-            ]}
-            disabled={state.graceClaimedInCurrentBlock}
-            onPress={() => setModalVisible(true)}>
-            <MaterialIcons
-              name="timer"
-              size={20}
-              color={state.graceClaimedInCurrentBlock ? '#64748B' : '#FFFFFF'}
-            />
-            <Text
-              style={[
-                styles.graceButtonText,
-                state.graceClaimedInCurrentBlock ? styles.graceButtonDisabledText : null,
-              ]}>
-              {state.graceClaimedInCurrentBlock
-                ? 'Friction Grace Already Claimed This Block'
-                : 'Claim +2m Friction Grace (Challenge Required)'}
-            </Text>
-          </TouchableOpacity>
-        )}
+              styles.graceButtonText,
+              state.graceClaimedInCurrentBlock ? styles.graceButtonDisabledText : null,
+            ]}>
+            {state.graceClaimedInCurrentBlock
+              ? 'Extension Already Claimed For Current Block'
+              : state.frictionEnabled
+              ? `Claim +2m Grace (${state.frictionType === 'math' ? `Math: ${state.mathDifficulty.toUpperCase()}` : 'Mindful Pledge'})`
+              : 'Claim +2m Extension (Instant • No Challenge)'}
+          </Text>
+        </TouchableOpacity>
 
         {/* App Timing Controls Card with Toggle after each App */}
         <View style={styles.card}>

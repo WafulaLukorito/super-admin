@@ -27,6 +27,10 @@ interface AppBlockerNativeModule {
   setTrackingMode(mode: string): boolean;
   getAllAppStats(): AppUsageStat[];
   claimGraceExtension(packageName?: string): boolean;
+  setFrictionSettings(enabled: boolean, type: string, mathDifficulty: string): boolean;
+  isFrictionEnabled(): boolean;
+  getFrictionType(): string;
+  getMathDifficulty(): string;
   resetBlock(packageName?: string): boolean;
   getInstalledApps(): Promise<InstalledApp[]>;
 }
@@ -77,6 +81,22 @@ export const AppBlocker = {
 
   claimGraceExtension(packageName?: string): boolean {
     return NativeAppBlocker?.claimGraceExtension(packageName) ?? false;
+  },
+
+  setFrictionSettings(enabled: boolean, type: string, mathDifficulty: string): boolean {
+    return NativeAppBlocker?.setFrictionSettings(enabled, type, mathDifficulty) ?? false;
+  },
+
+  isFrictionEnabled(): boolean {
+    return NativeAppBlocker?.isFrictionEnabled() ?? true;
+  },
+
+  getFrictionType(): string {
+    return NativeAppBlocker?.getFrictionType() ?? 'math';
+  },
+
+  getMathDifficulty(): string {
+    return NativeAppBlocker?.getMathDifficulty() ?? 'easy';
   },
 
   resetBlock(packageName?: string): boolean {
