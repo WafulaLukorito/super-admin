@@ -83,8 +83,8 @@ function generateMemorySequence(): number[] {
 export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   const engineState = BlockerEngine.getState();
   const [challengeType, setChallengeType] = useState<FrictionType>(engineState.frictionType || 'math');
-  const [difficulty, setDifficulty] = useState<MathDifficulty>(engineState.mathDifficulty || 'easy');
-  const [currentProblem, setCurrentProblem] = useState<MathProblem>({ question: '8 + 7 = ?', answer: '15' });
+  const [difficulty, setDifficulty] = useState<MathDifficulty>(engineState.mathDifficulty || 'medium');
+  const [currentProblem, setCurrentProblem] = useState<MathProblem>({ question: '7 × 8 = ?', answer: '56' });
   const [mathAnswer, setMathAnswer] = useState('');
   const [pledgeText, setPledgeText] = useState('');
 
@@ -101,8 +101,8 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
     if (visible) {
       const latest = BlockerEngine.getState();
       setChallengeType(latest.frictionType || 'math');
-      setDifficulty(latest.mathDifficulty || 'easy');
-      setCurrentProblem(generateMathProblem(latest.mathDifficulty || 'easy'));
+      setDifficulty(latest.mathDifficulty || 'medium');
+      setCurrentProblem(generateMathProblem(latest.mathDifficulty || 'medium'));
       setMathAnswer('');
       setPledgeText('');
     }
@@ -148,32 +148,32 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
       if (mathAnswer.trim() === currentProblem.answer) {
         const result = BlockerEngine.claimFrictionGrace();
         if (result.success) {
-          Alert.alert('Grace Period Granted', result.message);
+          Alert.alert('Extra Time Added', result.message);
           setMathAnswer('');
           onSuccess();
           onClose();
         } else {
-          Alert.alert('Extension Denied', result.message);
+          Alert.alert('Not Available', result.message);
         }
       } else {
         Alert.alert(
-          'Incorrect Answer',
-          `"${mathAnswer.trim()}" is not correct. Solve ${currentProblem.question} to prove deliberate attention.`
+          'Not Quite',
+          `"${mathAnswer.trim()}" isn't right. Try ${currentProblem.question}`
         );
       }
     } else if (challengeType === 'pledge') {
       if (pledgeText.trim().toLowerCase() === targetPledge.toLowerCase()) {
         const result = BlockerEngine.claimFrictionGrace();
         if (result.success) {
-          Alert.alert('Grace Period Granted', result.message);
+          Alert.alert('Extra Time Added', result.message);
           setPledgeText('');
           onSuccess();
           onClose();
         } else {
-          Alert.alert('Extension Denied', result.message);
+          Alert.alert('Not Available', result.message);
         }
       } else {
-        Alert.alert('Declaration Mismatch', 'Type the exact reflection prompt to unlock 2 minutes.');
+        Alert.alert('Almost There', 'Please type the exact sentence above to add 2 minutes.');
       }
     } else {
       const targetReversed = [...memorySequence].reverse().join('');
@@ -181,15 +181,15 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
       if (cleanInput === targetReversed) {
         const result = BlockerEngine.claimFrictionGrace();
         if (result.success) {
-          Alert.alert('Grace Period Granted', result.message);
+          Alert.alert('Extra Time Added', result.message);
           setMemoryAnswer('');
           onSuccess();
           onClose();
         } else {
-          Alert.alert('Extension Denied', result.message);
+          Alert.alert('Not Available', result.message);
         }
       } else {
-        Alert.alert('Sequence Mismatch', `The reverse sequence was ${targetReversed}. Try again with a new sequence.`);
+        Alert.alert('Not Quite', `The reverse order was ${targetReversed}. Try a fresh set of digits.`);
         handleResetMemory();
       }
     }
@@ -200,15 +200,15 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Text style={styles.badge}>ANTI-IMPULSE FRICTION GATE</Text>
+            <Text style={styles.badge}>EXTRA TIME CHECK</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeIconBtn}>
               <MaterialIcons name="close" size={20} color="#A8B5B0" />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.title}>2-Minute Grace Extension</Text>
+          <Text style={styles.title}>2 Extra Minutes</Text>
           <Text style={styles.subtitle}>
-            You may claim exactly ONE 2-minute extension per window. Complete the friction challenge to proceed.
+            You get one 2-minute extension per cycle. Complete a quick check to continue.
           </Text>
 
           <View style={styles.tabRow}>
@@ -345,7 +345,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitButton} onPress={handleVerify}>
-              <Text style={styles.submitText}>Claim +2m Grace</Text>
+              <Text style={styles.submitText}>Unlock 2 Minutes</Text>
             </TouchableOpacity>
           </View>
         </View>

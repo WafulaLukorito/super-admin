@@ -66,7 +66,7 @@ class BlockerForegroundService : Service() {
         super.onCreate()
         Log.i(TAG, "BlockerForegroundService onCreate")
         createNotificationChannel()
-        startForegroundWithCompat("Hourglass Active: Guarding time limits")
+        startForegroundWithCompat("Protecting your focus limits")
         isRunning = true
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -178,11 +178,11 @@ class BlockerForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = "$appName: $minsLeft min remaining!"
+        val title = "$appName: $minsLeft min left"
         val body = if (minsLeft == 1) {
-            "Only 1 minute left before $appName locks. Tap below to claim +2m extension."
+            "1 minute left before $appName pauses. Tap below for 2 extra minutes."
         } else {
-            "2 minutes left of your allowance. Tap below to claim +2m extension."
+            "2 minutes left on your timer. Tap below for 2 extra minutes."
         }
 
         val notification = NotificationCompat.Builder(this, WARNING_CHANNEL_ID)
@@ -197,7 +197,7 @@ class BlockerForegroundService : Service() {
             .setContentIntent(contentPendingIntent)
             .addAction(
                 android.R.drawable.ic_input_add,
-                "+2m Extension",
+                "+2 Min",
                 actionPendingIntent
             )
             .build()

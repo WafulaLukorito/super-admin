@@ -48,8 +48,8 @@ export function formatProfileTime(hour: number, minute: number): string {
 export const DEFAULT_PROFILES: TimeProfile[] = [
   {
     id: 'work',
-    name: 'Work Mode',
-    tag: 'Deep focus during business hours. 5m / 1hr allowance.',
+    name: 'Work Hours',
+    tag: 'Stay focused during work. 5 min per hour.',
     icon: 'business-center',
     enabled: true,
     startHour: 9,
@@ -63,7 +63,7 @@ export const DEFAULT_PROFILES: TimeProfile[] = [
   {
     id: 'evening',
     name: 'Evening Wind-Down',
-    tag: 'Relaxed leisure & socializing. 15m / 2hr allowance.',
+    tag: 'Relaxed browsing time. 15 min per 2 hours.',
     icon: 'wb-twilight',
     enabled: true,
     startHour: 19,
@@ -77,7 +77,7 @@ export const DEFAULT_PROFILES: TimeProfile[] = [
   {
     id: 'bedtime',
     name: 'Bedtime Lockdown',
-    tag: 'Zero screen time before sleep. Restful sleep shield (0m allowance).',
+    tag: 'Protected sleep hours. Apps stay locked until morning.',
     icon: 'nights-stay',
     enabled: true,
     startHour: 23,
@@ -111,25 +111,34 @@ export interface AuditEvent {
   detail: string;
 }
 
+export interface UrgeStats {
+  morning: number;   // 6 AM - 12 PM
+  midday: number;    // 12 PM - 5 PM
+  evening: number;   // 5 PM - 10 PM
+  lateNight: number; // 10 PM - 6 AM
+}
+
 export interface BlockerState {
   isShieldActive: boolean;
-  trackingMode: TrackingMode;  // 'cumulative' = shared pool | 'per_app' = independent timers
-  windowMinutes: number;       // 60 (1 hr) or 120 (2 hrs)
-  allowanceMinutes: number;    // 7 (1 hr) or 15 (2 hrs)
-  currentBlockElapsedSeconds: number; // time into current window
-  usedSecondsInBlock: number;  // seconds consumed out of allowance
-  graceClaimedInCurrentBlock: boolean; // max 1 extension per block
+  trackingMode: TrackingMode;
+  windowMinutes: number;
+  allowanceMinutes: number;
+  currentBlockElapsedSeconds: number;
+  usedSecondsInBlock: number;
+  graceClaimedInCurrentBlock: boolean;
   graceSecondsRemaining: number;
-  frictionEnabled: boolean;           // true = cognitive challenge required | false = direct instant +2m extension
-  frictionType: FrictionType;         // 'math' | 'pledge'
-  mathDifficulty: MathDifficulty;     // 'easy' | 'medium' | 'hard'
-  strictnessLevel: StrictnessLevel;   // 'mindful' | 'disciplined' | 'fortress'
-  breatheEnabled: boolean;           // 10s micro-intervention on opening guarded apps
-  positiveRedirectPackage: string;  // Positive alternative package to open on lock
-  positiveRedirectAppName: string;  // Positive alternative app name
-  windowRemainingSeconds: number; // live seconds until rolling block window resets
+  frictionEnabled: boolean;
+  frictionType: FrictionType;
+  mathDifficulty: MathDifficulty;
+  strictnessLevel: StrictnessLevel;
+  breatheEnabled: boolean;
+  positiveRedirectPackage: string;
+  positiveRedirectAppName: string;
+  windowRemainingSeconds: number;
   monitoredApps: MonitoredApp[];
+  deviceApps: MonitoredApp[];
   auditLogs: AuditEvent[];
+  urgeStats: UrgeStats;
   lastUptimeAnchor: number;
 
   // Milestone 5: Smart Context & Time-of-Day Profiles
@@ -141,17 +150,15 @@ export interface BlockerState {
   baselineStrictnessLevel: StrictnessLevel;
 }
 
-const STORAGE_KEY = '@super_admin_blocker_state_v3';
+const STORAGE_KEY = '@hourglass_blocker_state_v4';
 
 const DEFAULT_APPS: MonitoredApp[] = [
-  { id: '1', name: 'Instagram', packageName: 'com.instagram.android', category: 'poison', blocked: true, dailyUsageMinutes: 38 },
-  { id: '2', name: 'TikTok', packageName: 'com.zhiliaoapp.musically', category: 'poison', blocked: true, dailyUsageMinutes: 45 },
-  { id: '3', name: 'YouTube', packageName: 'com.google.android.youtube', category: 'poison', blocked: true, dailyUsageMinutes: 52 },
-  { id: '4', name: 'Reddit', packageName: 'com.reddit.frontpage', category: 'poison', blocked: true, dailyUsageMinutes: 24 },
-  { id: '5', name: 'X / Twitter', packageName: 'com.twitter.android', category: 'poison', blocked: true, dailyUsageMinutes: 19 },
-  { id: '6', name: 'Facebook', packageName: 'com.facebook.katana', category: 'distraction', blocked: true, dailyUsageMinutes: 15 },
-  { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', category: 'distraction', blocked: true, dailyUsageMinutes: 8 },
-  { id: '8', name: 'Chrome Browser', packageName: 'com.android.chrome', category: 'work', blocked: false, dailyUsageMinutes: 30 },
+  { id: '1', name: 'Instagram', packageName: 'com.instagram.android', category: 'poison', blocked: true, dailyUsageMinutes: 0 },
+  { id: '2', name: 'TikTok', packageName: 'com.zhiliaoapp.musically', category: 'poison', blocked: true, dailyUsageMinutes: 0 },
+  { id: '3', name: 'YouTube', packageName: 'com.google.android.youtube', category: 'poison', blocked: true, dailyUsageMinutes: 0 },
+  { id: '4', name: 'X / Twitter', packageName: 'com.twitter.android', category: 'poison', blocked: true, dailyUsageMinutes: 0 },
+  { id: '5', name: 'Reddit', packageName: 'com.reddit.frontpage', category: 'poison', blocked: true, dailyUsageMinutes: 0 },
+  { id: '6', name: 'Facebook', packageName: 'com.facebook.katana', category: 'distraction', blocked: true, dailyUsageMinutes: 0 },
 ];
 
 const INITIAL_STATE: BlockerState = {
@@ -165,29 +172,29 @@ const INITIAL_STATE: BlockerState = {
   graceSecondsRemaining: 0,
   frictionEnabled: true,
   frictionType: 'math',
-  mathDifficulty: 'easy',
+  mathDifficulty: 'medium',
   strictnessLevel: 'mindful',
   breatheEnabled: true,
   positiveRedirectPackage: 'com.amazon.kindle',
   positiveRedirectAppName: 'Kindle',
   windowRemainingSeconds: 3600,
   monitoredApps: DEFAULT_APPS,
+  deviceApps: DEFAULT_APPS,
   auditLogs: [
     {
       id: 'log-1',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'reset',
-      title: 'Hourglass Shield Initialized',
-      detail: 'Window presets (1h/7m, 2h/15m) & tracking modes (Cumulative/Per-App) loaded.',
-    },
-    {
-      id: 'log-2',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'tamper_check',
-      title: 'Anti-Tamper Anchor Verified',
-      detail: 'System uptime clock aligned with monotonic timer. Zero drift detected.',
+      title: 'Hourglass Ready',
+      detail: 'Protecting your focus across 6 starter apps.',
     },
   ],
+  urgeStats: {
+    morning: 0,
+    midday: 0,
+    evening: 0,
+    lateNight: 0,
+  },
   lastUptimeAnchor: Date.now(),
   profilesEnabled: true,
   timeProfiles: DEFAULT_PROFILES,
@@ -294,42 +301,65 @@ export class BlockerEngine {
   static async loadInstalledAppsFromDevice(): Promise<MonitoredApp[]> {
     try {
       const installed = await AppBlocker.getInstalledApps();
-      if (!installed || installed.length === 0) return this.state.monitoredApps;
+      if (!installed || installed.length === 0) return this.state.deviceApps;
 
-      const existingMap = new Map(this.state.monitoredApps.map((a) => [a.packageName, a]));
-      const mergedList: MonitoredApp[] = [];
+      const installedMap = new Map(installed.map((item) => [item.packageName, item]));
 
-      for (const item of installed) {
-        const existing = existingMap.get(item.packageName);
-        if (existing) {
-          mergedList.push({
-            ...existing,
-            name: item.appName,
-            category: (item.category as any) || existing.category,
-            icon: item.icon || existing.icon,
-          });
-          existingMap.delete(item.packageName);
-        } else {
-          mergedList.push({
-            id: `app-${item.packageName}`,
-            name: item.appName,
-            packageName: item.packageName,
-            category: (item.category as any) || 'utility',
-            blocked: item.category === 'poison',
-            dailyUsageMinutes: 0,
-            icon: item.icon,
-          });
+      // Enrich icons/names of the curated guarded apps without flooding the home screen
+      this.state.monitoredApps = this.state.monitoredApps.map((app) => {
+        const match = installedMap.get(app.packageName);
+        if (match) {
+          return {
+            ...app,
+            name: match.appName,
+            category: (match.category as any) || app.category,
+            icon: match.icon || app.icon,
+          };
         }
-      }
+        return app;
+      });
 
-      existingMap.forEach((app) => mergedList.push(app));
-      this.state.monitoredApps = mergedList;
+      this.state.deviceApps = installed.map((item) => ({
+        id: `app-${item.packageName}`,
+        name: item.appName,
+        packageName: item.packageName,
+        category: (item.category as any) || 'utility',
+        blocked: false,
+        dailyUsageMinutes: 0,
+        icon: item.icon,
+      }));
+
       this.notify();
-      return mergedList;
+      return this.state.deviceApps;
     } catch (e) {
       console.warn('Error loading installed apps:', e);
-      return this.state.monitoredApps;
+      return this.state.deviceApps;
     }
+  }
+
+  static addAppToMonitored(app: MonitoredApp): void {
+    const existing = this.state.monitoredApps.find((a) => a.packageName === app.packageName);
+    if (existing) {
+      this.state.monitoredApps = this.state.monitoredApps.map((a) =>
+        a.packageName === app.packageName ? { ...a, blocked: true } : a
+      );
+    } else {
+      this.state.monitoredApps = [
+        { ...app, blocked: true },
+        ...this.state.monitoredApps,
+      ];
+    }
+    this.addAuditLog('reset', `Added ${app.name}`, 'Now included in your guarded apps list.');
+    this.notify();
+  }
+
+  static removeAppFromMonitored(appId: string): void {
+    const target = this.state.monitoredApps.find((a) => a.id === appId);
+    this.state.monitoredApps = this.state.monitoredApps.filter((a) => a.id !== appId);
+    if (target) {
+      this.addAuditLog('reset', `Removed ${target.name}`, 'Removed from your guarded apps list.');
+    }
+    this.notify();
   }
 
   static getState(): BlockerState {
@@ -392,7 +422,7 @@ export class BlockerEngine {
       if (hasLockedApps || isPoolLocked) {
         return {
           active: true,
-          error: `${this.state.strictnessLevel.toUpperCase()} Mode Enforcement: Shield cannot be paused while a time limit lockdown is in effect. Wait for the window to unlock.`,
+          error: `Your limits are locked right now under ${this.state.strictnessLevel === 'fortress' ? 'Fortress' : 'Disciplined'} mode. They will reopen when the current cycle resets.`,
         };
       }
     }
@@ -400,8 +430,8 @@ export class BlockerEngine {
     this.state.isShieldActive = !this.state.isShieldActive;
     this.addAuditLog(
       'reset',
-      this.state.isShieldActive ? 'Shield Activated' : 'Shield Temporarily Paused',
-      this.state.isShieldActive ? 'Foreground tracking & overlay blocker active' : 'Monitoring paused by admin user'
+      this.state.isShieldActive ? 'Limits Active' : 'Limits Paused',
+      this.state.isShieldActive ? 'Monitoring your guarded apps.' : 'Time limits temporarily paused.'
     );
     this.notify();
     return { active: this.state.isShieldActive };
@@ -422,11 +452,6 @@ export class BlockerEngine {
     if (!this.state.profilesEnabled || !this.state.activeProfileId) {
       this.setRules(win, all);
     } else {
-      this.addAuditLog(
-        'reset',
-        'Baseline Preset Configured',
-        `Baseline preset set to ${all}m / ${win}m. Active profile (${this.getActiveProfile()?.name}) controls limits until scheduled end.`
-      );
       this.notify();
     }
   }
@@ -435,10 +460,10 @@ export class BlockerEngine {
     this.state.trackingMode = mode;
     this.addAuditLog(
       'reset',
-      'Tracking Mode Switched',
+      mode === 'per_app' ? 'Switched to Separate App Timers' : 'Switched to Shared Limit',
       mode === 'per_app'
-        ? 'Per-App Isolated: Each app has an independent allowance & reset timer.'
-        : 'Cumulative Pool: All guarded apps share the window allowance.'
+        ? 'Each guarded app now tracks its own independent time limit.'
+        : 'All guarded apps now share one combined timer.'
     );
     this.notify();
   }
@@ -446,19 +471,24 @@ export class BlockerEngine {
   static setRules(windowMinutes: number, allowanceMinutes: number): void {
     this.state.windowMinutes = windowMinutes;
     this.state.allowanceMinutes = allowanceMinutes;
-    this.addAuditLog(
-      'reset',
-      'Window Preset Configured',
-      `${allowanceMinutes}m allowance per ${windowMinutes}m rolling block window.`
-    );
     this.notify();
+  }
+
+  private static recordUrge(date = new Date()): void {
+    const h = date.getHours();
+    const stats = { ...(this.state.urgeStats || INITIAL_STATE.urgeStats) };
+    if (h >= 6 && h < 12) stats.morning += 1;
+    else if (h >= 12 && h < 17) stats.midday += 1;
+    else if (h >= 17 && h < 22) stats.evening += 1;
+    else stats.lateNight += 1;
+    this.state.urgeStats = stats;
   }
 
   static claimFrictionGrace(packageName?: string): { success: boolean; message: string } {
     if (this.state.graceClaimedInCurrentBlock) {
       return {
         success: false,
-        message: 'Strict Anti-Tamper: Only 1 friction extension is permitted per block window.',
+        message: 'You already used your extra 2 minutes for this cycle.',
       };
     }
 
@@ -466,57 +496,50 @@ export class BlockerEngine {
       AppBlocker.claimGraceExtension(packageName);
     } catch (e) {}
 
+    this.recordUrge();
     this.state.graceClaimedInCurrentBlock = true;
-    this.state.graceSecondsRemaining = 120; // 2 minutes
+    this.state.graceSecondsRemaining = 120;
     this.addAuditLog(
       'extension',
-      this.state.frictionEnabled ? '2-Minute Friction Grace Granted' : 'Direct 2-Minute Extension Granted',
+      '2 Extra Minutes Added',
       this.state.frictionEnabled
-        ? 'User completed cognitive challenge. Hard lockdown postponed by 120 seconds.'
-        : 'User claimed direct grace extension. Hard lockdown postponed by 120 seconds.'
+        ? 'Completed the quick check for 2 extra minutes.'
+        : 'Added 2 extra minutes to the current cycle.'
     );
     this.notify();
     return {
       success: true,
-      message: '2-minute grace period active. Strict lockdown engages immediately after.',
+      message: '2 extra minutes added. Limits resume right after.',
     };
   }
 
   static setFrictionEnabled(enabled: boolean): void {
     this.state.frictionEnabled = enabled;
-    this.addAuditLog(
-      'reset',
-      enabled ? 'Friction Challenge Required' : 'Direct Extension Mode Activated',
-      enabled
-        ? `Grace extensions require completing a ${this.state.frictionType} challenge.`
-        : 'Grace extensions can be claimed directly without cognitive challenges.'
-    );
     this.notify();
   }
 
   static setFrictionType(type: FrictionType): void {
     this.state.frictionType = type;
-    this.addAuditLog('reset', 'Friction Challenge Type Updated', `Friction type set to: ${type}`);
     this.notify();
   }
 
   static setMathDifficulty(difficulty: MathDifficulty): void {
     this.state.mathDifficulty = difficulty;
-    this.addAuditLog('reset', 'Math Difficulty Updated', `Difficulty set to: ${difficulty.toUpperCase()}`);
     this.notify();
   }
 
   static setStrictnessLevel(level: StrictnessLevel): void {
     this.state.baselineStrictnessLevel = level;
     this.state.strictnessLevel = level;
+    const label = level === 'fortress' ? 'Fortress' : level === 'disciplined' ? 'Disciplined' : 'Mindful';
     this.addAuditLog(
       'reset',
-      `Strictness Level Updated: ${level.toUpperCase()}`,
+      `Protection set to ${label}`,
       level === 'fortress'
-        ? 'Fortress Mode: 0ms Accessibility Interceptor, Device Admin anti-uninstall, and strict settings protection active.'
+        ? 'Maximum protection active.'
         : level === 'disciplined'
-        ? 'Disciplined Mode: Settings protection and locked shield active during lockouts.'
-        : 'Mindful Mode: Gentle awareness and flexible shield controls active.'
+        ? 'Limits stay locked once time runs out.'
+        : 'Flexible limits and gentle reminders.'
     );
     this.notify();
   }
@@ -543,7 +566,6 @@ export class BlockerEngine {
         this.state.windowMinutes = this.state.baselineWindowMinutes;
         this.state.allowanceMinutes = this.state.baselineAllowanceMinutes;
         this.state.strictnessLevel = this.state.baselineStrictnessLevel;
-        this.addAuditLog('reset', 'Off-Peak Baseline Engaged', 'Scheduled profiles disabled; restored baseline rules.');
         this.notify();
         return true;
       }
@@ -561,18 +583,19 @@ export class BlockerEngine {
         this.state.strictnessLevel = active.strictnessOverride || this.state.strictnessLevel;
         this.addAuditLog(
           'reset',
-          `Profile Activated: ${active.name}`,
-          `${active.allowanceMinutes}m allowance per ${active.windowMinutes}m window (${active.strictnessOverride.toUpperCase()} mode). Scheduled until ${formatProfileTime(active.endHour, active.endMinute)}.`
+          `${active.name} Started`,
+          active.allowanceMinutes === 0
+            ? `Protected sleep hours until ${formatProfileTime(active.endHour, active.endMinute)}.`
+            : `${active.allowanceMinutes} min per ${active.windowMinutes === 120 ? '2 hours' : 'hour'} until ${formatProfileTime(active.endHour, active.endMinute)}.`
         );
       } else {
-        // Revert to baseline
         this.state.windowMinutes = this.state.baselineWindowMinutes;
         this.state.allowanceMinutes = this.state.baselineAllowanceMinutes;
         this.state.strictnessLevel = this.state.baselineStrictnessLevel;
         this.addAuditLog(
           'reset',
-          'Off-Peak Schedule Active',
-          `Reverted to baseline rules: ${this.state.baselineAllowanceMinutes}m / ${this.state.baselineWindowMinutes}m window.`
+          'Standard Schedule Active',
+          `${this.state.baselineAllowanceMinutes} min per ${this.state.baselineWindowMinutes === 120 ? '2 hours' : 'hour'}.`
         );
       }
       this.notify();
@@ -583,13 +606,6 @@ export class BlockerEngine {
 
   static setProfilesEnabled(enabled: boolean): void {
     this.state.profilesEnabled = enabled;
-    this.addAuditLog(
-      'reset',
-      enabled ? 'Scheduled Auto-Profiles Activated' : 'Scheduled Auto-Profiles Disabled',
-      enabled
-        ? 'Work Mode, Evening Wind-Down & Bedtime Lockdown dynamically control limits.'
-        : 'Rules revert to manual baseline configuration.'
-    );
     this.checkAndApplyActiveProfile();
     this.notify();
   }
@@ -597,11 +613,6 @@ export class BlockerEngine {
   static updateTimeProfile(updated: TimeProfile): void {
     this.state.timeProfiles = this.state.timeProfiles.map((p) =>
       p.id === updated.id ? updated : p
-    );
-    this.addAuditLog(
-      'reset',
-      `Profile Configured: ${updated.name}`,
-      `${formatProfileTime(updated.startHour, updated.startMinute)} – ${formatProfileTime(updated.endHour, updated.endMinute)} | ${updated.allowanceMinutes}m / ${updated.windowMinutes}m (${updated.strictnessOverride.toUpperCase()})`
     );
     if (this.state.activeProfileId === updated.id) {
       this.state.windowMinutes = updated.windowMinutes;
@@ -615,32 +626,24 @@ export class BlockerEngine {
   static toggleTimeProfile(id: string): void {
     const profile = this.state.timeProfiles.find((p) => p.id === id);
     if (!profile) return;
-    const willEnable = !profile.enabled;
-    this.updateTimeProfile({ ...profile, enabled: willEnable });
+    this.updateTimeProfile({ ...profile, enabled: !profile.enabled });
   }
 
   static resetProfilesToDefault(): void {
     this.state.timeProfiles = DEFAULT_PROFILES;
     this.state.profilesEnabled = true;
-    this.addAuditLog('reset', 'Profiles Reset to Defaults', 'Work (9-5), Evening (7-10), and Bedtime (11-6) restored.');
     this.checkAndApplyActiveProfile();
     this.notify();
   }
 
   static setBreatheEnabled(enabled: boolean): void {
     this.state.breatheEnabled = enabled;
-    this.addAuditLog(
-      'reset',
-      enabled ? 'Breathe Before Scroll Activated' : 'Breathe Micro-Intervention Paused',
-      enabled ? '10-second breathwork circle will display when launching guarded apps.' : 'Guarded apps launch without breath micro-pause.'
-    );
     this.notify();
   }
 
   static setPositiveRedirect(packageName: string, appName: string): void {
     this.state.positiveRedirectPackage = packageName;
     this.state.positiveRedirectAppName = appName;
-    this.addAuditLog('reset', 'Positive Redirect App Configured', `Redirect target set to ${appName} (${packageName})`);
     this.notify();
   }
 
@@ -652,7 +655,7 @@ export class BlockerEngine {
       title,
       detail,
     };
-    this.state.auditLogs = [newLog, ...this.state.auditLogs.slice(0, 49)];
+    this.state.auditLogs = [newLog, ...this.state.auditLogs.slice(0, 14)];
   }
 
   static resetBlock(packageName?: string): void {
@@ -664,7 +667,7 @@ export class BlockerEngine {
     this.state.currentBlockElapsedSeconds = 0;
     this.state.graceClaimedInCurrentBlock = false;
     this.state.graceSecondsRemaining = 0;
-    this.addAuditLog('reset', 'Manual Block Reset', 'Fresh block window initialized.');
+    this.addAuditLog('reset', 'Timer Reset', 'Fresh cycle started with full time available.');
     this.notify();
   }
 }

@@ -79,12 +79,12 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
         <View style={styles.card}>
           <View style={styles.badgeRow}>
             <MaterialIcons name="air" size={14} color="#2ED3A3" />
-            <Text style={styles.badgeText}>MINDFUL MICRO-INTERVENTION</Text>
+            <Text style={styles.badgeText}>MINDFUL PAUSE</Text>
           </View>
 
-          <Text style={styles.title}>Breathe Before Scroll</Text>
+          <Text style={styles.title}>Take a Breath</Text>
           <Text style={styles.subtitle}>
-            Are you opening {appName} with intention? Behavioral science shows a 10-second pause breaks up to 80% of compulsive autopilot urges.
+            Pause for a quick breath before opening {appName}. Do you want to open it right now?
           </Text>
 
           {/* Animated Breathwork Circle */}
@@ -104,7 +104,7 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
           {/* Action Buttons */}
           <TouchableOpacity style={styles.closeAppButton} onPress={onClose}>
             <MaterialIcons name="check-circle" size={18} color="#101A17" />
-            <Text style={styles.closeAppText}>I'll Skip It (Behavioral Win!)</Text>
+            <Text style={styles.closeAppText}>Skip Opening</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

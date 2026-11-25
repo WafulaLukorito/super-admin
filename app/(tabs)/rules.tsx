@@ -6,16 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  TextInput,
-  Image,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   BlockerEngine,
   BlockerState,
-  MonitoredApp,
   TrackingMode,
   FrictionType,
   MathDifficulty,
@@ -24,40 +20,44 @@ import {
   formatProfileTime,
 } from '@/services/blockerEngine';
 import { BreatheModal } from '@/components/BreatheModal';
+import { AddAppModal } from '@/components/AddAppModal';
 import AppBlocker from '@/modules/app-blocker';
 
 export default function RulesScreen() {
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'guarded' | 'poison' | 'game'>('all');
-  const [isScanning, setIsScanning] = useState(false);
-  const [newPkgName, setNewPkgName] = useState('');
-  const [newAppName, setNewAppName] = useState('');
   const [breatheModalVisible, setBreatheModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
   const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null);
+
+  useEffect(() => {
+    BlockerEngine.init().then((s) => setState({ ...s }));
+    const unsubscribe = BlockerEngine.subscribe((newState) => {
+      setState({ ...newState });
+    });
+    return unsubscribe;
+  }, []);
 
   const handleToggleProfilesEnabled = (val: boolean) => {
     BlockerEngine.setProfilesEnabled(val);
     Alert.alert(
-      val ? 'Scheduled Profiles Enabled' : 'Scheduled Profiles Disabled',
+      val ? 'Daily Schedules On' : 'Daily Schedules Off',
       val
-        ? 'Work Mode, Evening Wind-Down & Bedtime Lockdown dynamically govern windows based on current time of day.'
-        : 'Rules have reverted to your manual baseline window configuration.'
+        ? 'Work Hours, Evening Wind-Down, and Bedtime Lockdown will adjust your limits automatically.'
+        : 'Hourglass will use your default cycle limit all day.'
     );
   };
 
   const handleResetProfiles = () => {
     Alert.alert(
-      'Reset Profiles',
-      'Restore Work Mode (9 AM – 5 PM), Evening Wind-Down (7 PM – 10 PM), and Bedtime Lockdown (11 PM – 6 AM) defaults?',
+      'Reset Schedules?',
+      'Restore Work Hours (9 AM – 5 PM), Evening Wind-Down (7 PM – 10 PM), and Bedtime Lockdown (11 PM – 6 AM)?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset Defaults',
+          text: 'Reset',
           style: 'destructive',
           onPress: () => {
             BlockerEngine.resetProfilesToDefault();
-            Alert.alert('Profiles Reset', 'Smart context profiles restored to blanket defaults.');
           },
         },
       ]
@@ -90,56 +90,33 @@ export default function RulesScreen() {
     BlockerEngine.updateTimeProfile({ ...profile, strictnessOverride: level });
   };
 
-  useEffect(() => {
-    BlockerEngine.init().then((s) => setState(s));
-    const unsubscribe = BlockerEngine.subscribe((newState) => {
-      setState({ ...newState });
-    });
-    return unsubscribe;
-  }, []);
-
-  const handleScanApps = async () => {
-    setIsScanning(true);
-    try {
-      const updated = await BlockerEngine.loadInstalledAppsFromDevice();
-      Alert.alert(
-        'App Scan Complete',
-        `Discovered ${updated.length} launchable apps on your device.`
-      );
-    } catch (e) {
-      Alert.alert('Scan Failed', 'Could not query installed applications.');
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
   const handleSelectPreset = (type: '1h' | '2h') => {
     BlockerEngine.setPreset(type);
-    const win = type === '1h' ? 60 : 120;
-    const all = type === '1h' ? 7 : 15;
     Alert.alert(
-      'Window Preset Activated',
-      `${type === '1h' ? '1 Hour' : '2 Hours'} Window: ${all}m allowance per ${win}m rolling block.`
+      'Default Limit Updated',
+      type === '1h'
+        ? '1-Hour Cycle: 7 minutes allowed per hour.'
+        : '2-Hour Cycle: 15 minutes allowed every 2 hours.'
     );
   };
 
   const handleSelectMode = (mode: TrackingMode) => {
     BlockerEngine.setTrackingMode(mode);
     Alert.alert(
-      'Enforcement Mode Updated',
+      'Timer Mode Updated',
       mode === 'per_app'
-        ? 'Per-App Isolated Mode: Each app has its own separate timer and window. Using Twitter will not count against Instagram.'
-        : 'Cumulative Shared Pool: All guarded apps share a combined allowance pool. Reaching limit locks all guarded apps.'
+        ? 'Separate App Timers: Each app has its own timer. Reaching the limit in X will not affect Instagram.'
+        : 'Shared Pool: All guarded apps share one combined timer.'
     );
   };
 
   const handleToggleFriction = (enabled: boolean) => {
     BlockerEngine.setFrictionEnabled(enabled);
     Alert.alert(
-      enabled ? 'Cognitive Friction Gate Enabled' : 'Direct Extension Mode Activated',
+      enabled ? 'Quick Challenge On' : 'Instant Extra Time On',
       enabled
-        ? `Grace extensions require completing a ${state.frictionType} challenge.`
-        : 'Tapping "+2m Extension" (in top pop-up notification or in the app) immediately extends your time by 2 minutes without asking you to do anything.'
+        ? 'Getting 2 extra minutes will require completing a quick check first.'
+        : 'Tapping "+2 Min" adds extra time right away with no challenge.'
     );
   };
 
@@ -157,22 +134,22 @@ export default function RulesScreen() {
       const isAccessActive = AppBlocker.isAccessibilityServiceActive();
       const isAdminActive = AppBlocker.isDeviceAdminActive();
       Alert.alert(
-        'Fortress Mode Activated',
-        `Maximum Hardcore Anti-Tamper Safeguards Active:\n\n• 0ms Zero-Flicker Intercept\n• Android Settings Protected during lockdowns\n• Device Administrator Mode Enabled\n\n${
+        'Fortress Mode Active',
+        `Maximum protection is on:\n\n• Instant app lockouts\n• Blocks Settings during lockouts\n• Uninstall protection${
           !isAccessActive || !isAdminActive
-            ? 'Note: Visit System Permissions to verify Accessibility & Device Admin activation.'
-            : 'All hardcore protections are active.'
+            ? '\n\nVisit the Setup tab to make sure Instant Lock and Uninstall Protection are turned on.'
+            : ''
         }`
       );
     } else if (level === 'disciplined') {
       Alert.alert(
-        'Disciplined Mode Activated',
-        'Shield cannot be suspended during active locks, and Android Settings access is restricted during active lockdown to prevent impulsive bypass.'
+        'Disciplined Mode Active',
+        'Limits stay locked once time runs out, and Android Settings is blocked during lockouts.'
       );
     } else {
       Alert.alert(
-        'Mindful Mode Activated',
-        'Standard mindful usage tracking with flexible controls and gentle pause reminders.'
+        'Mindful Mode Active',
+        'Gentle limits with full flexibility to pause or adjust rules anytime.'
       );
     }
   };
@@ -183,88 +160,29 @@ export default function RulesScreen() {
 
   const handleSelectPositiveRedirect = (pkg: string, name: string) => {
     BlockerEngine.setPositiveRedirect(pkg, name);
-    Alert.alert('Positive Alternative Configured', `Lock overlay will now offer a 1-tap shortcut to ${name}.`);
+    Alert.alert('Healthy Alternative Saved', `When a guarded app locks, you can jump straight to ${name}.`);
   };
-
-  const handleToggleApp = (id: string) => {
-    const app = state.monitoredApps.find((a) => a.id === id);
-    BlockerEngine.toggleAppBlock(id);
-    if (app) {
-      const willBeTimed = !app.blocked;
-      Alert.alert(
-        willBeTimed ? 'Timing Enabled' : 'Timing Disabled',
-        willBeTimed
-          ? `${app.name} is now included in your ${state.allowanceMinutes}m timer.`
-          : `Timing disabled for ${app.name}. It will not be timed or locked.`
-      );
-    }
-  };
-
-  const handleAddCustomApp = () => {
-    if (!newAppName.trim() || !newPkgName.trim()) {
-      Alert.alert('Incomplete Form', 'Please enter both the application name and Android package identifier.');
-      return;
-    }
-    const newApp: MonitoredApp = {
-      id: `app-${newPkgName.trim()}`,
-      name: newAppName.trim(),
-      packageName: newPkgName.trim(),
-      category: 'custom',
-      blocked: true,
-      dailyUsageMinutes: 0,
-    };
-    state.monitoredApps.push(newApp);
-    BlockerEngine.addAuditLog('reset', 'Custom App Added', `Guarding ${newApp.name} (${newApp.packageName})`);
-    setNewAppName('');
-    setNewPkgName('');
-    Alert.alert('App Added', `${newApp.name} is now guarded under your rules.`);
-  };
-
-  // Filter apps
-  const filteredApps = state.monitoredApps.filter((app) => {
-    const matchesSearch =
-      app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.packageName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (selectedFilter === 'guarded') return app.blocked;
-    if (selectedFilter === 'poison') return app.category === 'poison';
-    if (selectedFilter === 'game') return app.category === 'game';
-    return true;
-  });
 
   const guardedCount = state.monitoredApps.filter((a) => a.blocked).length;
-  const is1hPreset = state.windowMinutes === 60 && state.allowanceMinutes === 7;
-  const is2hPreset = state.windowMinutes === 120 && state.allowanceMinutes === 15;
+  const is1hPreset = state.baselineWindowMinutes === 60 && state.baselineAllowanceMinutes === 7;
+  const is2hPreset = state.baselineWindowMinutes === 120 && state.baselineAllowanceMinutes === 15;
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>BLOCK RULES & LIMITS</Text>
-          <Text style={styles.subtitle}>Configure rolling windows, modes & guarded apps</Text>
+          <Text style={styles.title}>RULES & SCHEDULES</Text>
+          <Text style={styles.subtitle}>Customize your daily routines and time limits</Text>
         </View>
 
-        {/* Battery Sleep Status Card */}
-        <View style={styles.batteryCard}>
-          <MaterialIcons name="battery-charging-full" size={20} color="#84E150" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.batteryTitle}>Battery Sleep Engine Active</Text>
-            <Text style={styles.batterySubtitle}>
-              Polling loop shuts down when the phone screen is off. 0% idle drain.
-            </Text>
-          </View>
-        </View>
-
-        {/* Smart Context & Time-of-Day Profiles */}
+        {/* Daily Schedules */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={styles.cardSection}>SMART CONTEXT & TIME-OF-DAY</Text>
+              <Text style={styles.cardSection}>DAILY SCHEDULES</Text>
               <Text style={styles.profileMasterSub}>
-                Work, Evening & Bedtime rules based on clock schedule
+                Automatically adjust limits throughout your day
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -283,12 +201,7 @@ export default function RulesScreen() {
             </View>
           </View>
 
-          <Text style={styles.cardExplainer}>
-            Automatically switch allowances and strictness to match your day:
-          </Text>
-
-          {/* Profile Cards */}
-          <View style={{ gap: 12, marginTop: 4 }}>
+          <View style={{ gap: 12, marginTop: 10 }}>
             {state.timeProfiles.map((profile) => {
               const isActiveNow = state.profilesEnabled && state.activeProfileId === profile.id;
               const isExpanded = expandedProfileId === profile.id;
@@ -302,7 +215,6 @@ export default function RulesScreen() {
                     isActiveNow && (isBedtime ? styles.profileCardActiveBedtime : styles.profileCardActive),
                     !profile.enabled && styles.profileCardDisabled,
                   ]}>
-                  {/* Card Header */}
                   <View style={styles.profileCardHeader}>
                     <View style={styles.profileCardTitleRow}>
                       <View
@@ -344,7 +256,6 @@ export default function RulesScreen() {
                     />
                   </View>
 
-                  {/* Summary Bar */}
                   <View style={styles.profileSummaryRow}>
                     <View style={styles.profileSummaryItem}>
                       <MaterialIcons name="schedule" size={13} color="#A8B5B0" />
@@ -355,7 +266,7 @@ export default function RulesScreen() {
                     <View style={styles.profileSummaryItem}>
                       <MaterialIcons name="timelapse" size={13} color="#A8B5B0" />
                       <Text style={styles.profileSummaryText}>
-                        {profile.allowanceMinutes === 0 ? '0m Hard Lock' : `${profile.allowanceMinutes}m / ${profile.windowMinutes}m`}
+                        {profile.allowanceMinutes === 0 ? 'Locked' : `${profile.allowanceMinutes}m / ${profile.windowMinutes}m`}
                       </Text>
                     </View>
                     <View style={styles.profileSummaryItem}>
@@ -366,12 +277,11 @@ export default function RulesScreen() {
                     </View>
                   </View>
 
-                  {/* Expand / Customize Toggle */}
                   <TouchableOpacity
                     style={styles.customizeToggleBtn}
                     onPress={() => setExpandedProfileId(isExpanded ? null : profile.id)}>
                     <Text style={styles.customizeToggleBtnText}>
-                      {isExpanded ? 'Hide Schedule Controls' : 'Adjust Schedule & Limits'}
+                      {isExpanded ? 'Hide Schedule Controls' : 'Edit Schedule'}
                     </Text>
                     <MaterialIcons
                       name={isExpanded ? 'expand-less' : 'expand-more'}
@@ -380,15 +290,12 @@ export default function RulesScreen() {
                     />
                   </TouchableOpacity>
 
-                  {/* Expandable Controls Area */}
                   {isExpanded && (
                     <View style={styles.profileEditArea}>
-                      {/* Hours Stepper Row */}
-                      <Text style={styles.editSectionTitle}>ACTIVE TIME WINDOW</Text>
+                      <Text style={styles.editSectionTitle}>ACTIVE HOURS</Text>
                       <View style={styles.timeStepperRow}>
-                        {/* Start Hour */}
                         <View style={styles.stepperBox}>
-                          <Text style={styles.stepperLabel}>START TIME</Text>
+                          <Text style={styles.stepperLabel}>START</Text>
                           <View style={styles.stepperControls}>
                             <TouchableOpacity
                               style={styles.stepperBtn}
@@ -406,9 +313,8 @@ export default function RulesScreen() {
                           </View>
                         </View>
 
-                        {/* End Hour */}
                         <View style={styles.stepperBox}>
-                          <Text style={styles.stepperLabel}>END TIME</Text>
+                          <Text style={styles.stepperLabel}>END</Text>
                           <View style={styles.stepperControls}>
                             <TouchableOpacity
                               style={styles.stepperBtn}
@@ -427,11 +333,10 @@ export default function RulesScreen() {
                         </View>
                       </View>
 
-                      {/* Allowance Selector */}
-                      <Text style={styles.editSectionTitle}>ALLOWANCE PER WINDOW</Text>
+                      <Text style={styles.editSectionTitle}>TIME ALLOWED</Text>
                       <View style={styles.chipsRow}>
                         {[
-                          { label: '0m (Lock)', val: 0 },
+                          { label: '0m (Locked)', val: 0 },
                           { label: '3m', val: 3 },
                           { label: '5m', val: 5 },
                           { label: '7m', val: 7 },
@@ -453,12 +358,11 @@ export default function RulesScreen() {
                         })}
                       </View>
 
-                      {/* Rolling Window Selector */}
-                      <Text style={styles.editSectionTitle}>ROLLING BLOCK INTERVAL</Text>
+                      <Text style={styles.editSectionTitle}>CYCLE LENGTH</Text>
                       <View style={styles.chipsRow}>
                         {[
-                          { label: '1 Hour (60m)', val: 60 },
-                          { label: '2 Hours (120m)', val: 120 },
+                          { label: '1 Hour', val: 60 },
+                          { label: '2 Hours', val: 120 },
                         ].map((opt) => {
                           const isSel = profile.windowMinutes === opt.val;
                           return (
@@ -474,8 +378,7 @@ export default function RulesScreen() {
                         })}
                       </View>
 
-                      {/* Strictness Level Selector */}
-                      <Text style={styles.editSectionTitle}>STRICTNESS LEVEL OVERRIDE</Text>
+                      <Text style={styles.editSectionTitle}>PROTECTION STRENGTH</Text>
                       <View style={styles.chipsRow}>
                         {(['mindful', 'disciplined', 'fortress'] as StrictnessLevel[]).map((lvl) => {
                           const isSel = profile.strictnessOverride === lvl;
@@ -506,13 +409,13 @@ export default function RulesScreen() {
           </View>
         </View>
 
-        {/* Window Presets Toggle */}
+        {/* Default Cycle Limit */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>MANUAL BASELINE WINDOW</Text>
+            <Text style={styles.cardSection}>DEFAULT CYCLE LIMIT</Text>
             <View style={styles.currentBadge}>
               <Text style={styles.currentBadgeText}>
-                {state.allowanceMinutes}m / {state.windowMinutes}m
+                {state.baselineAllowanceMinutes}m / {state.baselineWindowMinutes}m
               </Text>
             </View>
           </View>
@@ -520,12 +423,12 @@ export default function RulesScreen() {
             <View style={styles.activeProfileNotice}>
               <MaterialIcons name="auto-awesome" size={14} color="#84E150" />
               <Text style={styles.activeProfileNoticeText}>
-                Smart Profile active ({state.timeProfiles.find((p) => p.id === state.activeProfileId)?.name || 'Profile'}). Below settings apply during Off-Peak baseline hours.
+                {state.timeProfiles.find((p) => p.id === state.activeProfileId)?.name || 'Schedule'} is active now. This default applies between scheduled hours.
               </Text>
             </View>
           )}
           <Text style={styles.cardExplainer}>
-            Toggle between standard 1-hour focus and extended 2-hour cycles:
+            Choose your standard time budget between scheduled routines:
           </Text>
 
           <View style={styles.presetToggleRow}>
@@ -540,13 +443,13 @@ export default function RulesScreen() {
                 />
                 <View style={[styles.presetTag, is1hPreset && styles.presetTagActive]}>
                   <Text style={[styles.presetTagText, is1hPreset && styles.presetTagTextActive]}>
-                    7 MINS / HR
+                    7 MIN / HR
                   </Text>
                 </View>
               </View>
-              <Text style={styles.presetName}>1 Hour Window</Text>
+              <Text style={styles.presetName}>1-Hour Cycle</Text>
               <Text style={styles.presetDetail}>
-                7 minutes allowed within every rolling 60-minute interval.
+                7 minutes allowed every hour.
               </Text>
             </TouchableOpacity>
 
@@ -561,33 +464,32 @@ export default function RulesScreen() {
                 />
                 <View style={[styles.presetTag, is2hPreset && styles.presetTagActive]}>
                   <Text style={[styles.presetTagText, is2hPreset && styles.presetTagTextActive]}>
-                    15 MINS / 2 HRS
+                    15 MIN / 2 HR
                   </Text>
                 </View>
               </View>
-              <Text style={styles.presetName}>2 Hours Window</Text>
+              <Text style={styles.presetName}>2-Hour Cycle</Text>
               <Text style={styles.presetDetail}>
-                15 minutes allowed within every rolling 120-minute interval.
+                15 minutes allowed every 2 hours.
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Tracking Mode Selector */}
+        {/* How Time Is Counted */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>ENFORCEMENT MODE</Text>
+            <Text style={styles.cardSection}>HOW TIME IS COUNTED</Text>
             <View style={[styles.currentBadge, state.trackingMode === 'per_app' ? styles.modeBadgePerApp : styles.modeBadgeCumul]}>
               <Text style={[styles.currentBadgeText, state.trackingMode === 'per_app' && { color: '#84E150' }]}>
-                {state.trackingMode === 'per_app' ? 'PER-APP ISOLATED' : 'CUMULATIVE POOL'}
+                {state.trackingMode === 'per_app' ? 'PER-APP' : 'SHARED POOL'}
               </Text>
             </View>
           </View>
           <Text style={styles.cardExplainer}>
-            Choose whether all guarded apps share one pool or count time independently:
+            Decide whether guarded apps share one timer or run separately:
           </Text>
 
-          {/* Cumulative Tile */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -601,18 +503,17 @@ export default function RulesScreen() {
                   size={20}
                   color={state.trackingMode === 'cumulative' ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Cumulative Shared Pool</Text>
+                <Text style={styles.modeCardTitle}>Shared Pool</Text>
               </View>
               <View style={[styles.radioCircle, state.trackingMode === 'cumulative' && styles.radioCircleActive]}>
                 {state.trackingMode === 'cumulative' && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              All guarded apps share the same {state.allowanceMinutes}m limit. Using Twitter, Instagram, or TikTok adds to one shared meter. Reaching zero locks all apps together.
+              All guarded apps share one {state.allowanceMinutes}-minute timer. When time runs out, they pause together.
             </Text>
           </TouchableOpacity>
 
-          {/* Per-App Tile */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -626,22 +527,22 @@ export default function RulesScreen() {
                   size={20}
                   color={state.trackingMode === 'per_app' ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Per-App Separate Timers</Text>
+                <Text style={styles.modeCardTitle}>Separate App Timers</Text>
               </View>
               <View style={[styles.radioCircle, state.trackingMode === 'per_app' && styles.radioCircleActive]}>
                 {state.trackingMode === 'per_app' && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Each app gets its own separate {state.allowanceMinutes}m limit and {state.windowMinutes}m rolling window. Using Twitter for {state.allowanceMinutes}m locks Twitter, but Instagram retains its own full allowance.
+              Each app gets its own {state.allowanceMinutes}-minute limit. Finishing X will not reduce your time in Instagram.
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Strictness Level & Anti-Tamper Protections */}
+        {/* Protection Strength */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>STRICTNESS & ANTI-TAMPER TIER</Text>
+            <Text style={styles.cardSection}>PROTECTION STRENGTH</Text>
             <View
               style={[
                 styles.currentBadge,
@@ -660,19 +561,14 @@ export default function RulesScreen() {
                     ? { color: '#84E150' }
                     : null,
                 ]}>
-                {state.strictnessLevel === 'fortress'
-                  ? 'FORTRESS (LVL 3)'
-                  : state.strictnessLevel === 'disciplined'
-                  ? 'DISCIPLINED (LVL 2)'
-                  : 'MINDFUL (LVL 1)'}
+                {state.strictnessLevel.toUpperCase()}
               </Text>
             </View>
           </View>
           <Text style={styles.cardExplainer}>
-            Control the rigor of enforcement and anti-tamper barriers against impulse bypasses:
+            Choose how firmly Hourglass holds your limits when urges hit:
           </Text>
 
-          {/* Level 1: Mindful */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -686,18 +582,17 @@ export default function RulesScreen() {
                   size={20}
                   color={state.strictnessLevel === 'mindful' ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Level 1: Mindful (Standard)</Text>
+                <Text style={styles.modeCardTitle}>Mindful</Text>
               </View>
               <View style={[styles.radioCircle, state.strictnessLevel === 'mindful' && styles.radioCircleActive]}>
                 {state.strictnessLevel === 'mindful' && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Flexible awareness, gentle reminders. Settings and uninstallation remain open. Shield can be paused anytime. Best for light habit building.
+              Gentle awareness. You can pause limits or adjust settings anytime.
             </Text>
           </TouchableOpacity>
 
-          {/* Level 2: Disciplined */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -711,18 +606,17 @@ export default function RulesScreen() {
                   size={20}
                   color={state.strictnessLevel === 'disciplined' ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Level 2: Disciplined (Enforced)</Text>
+                <Text style={styles.modeCardTitle}>Disciplined</Text>
               </View>
               <View style={[styles.radioCircle, state.strictnessLevel === 'disciplined' && styles.radioCircleActive]}>
                 {state.strictnessLevel === 'disciplined' && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Shield cannot be paused while a lockdown is in effect. System Settings (com.android.settings) is guarded during lockdown to stop impulsive bypasses.
+              Keeps limits locked once time runs out and blocks Android Settings during lockouts.
             </Text>
           </TouchableOpacity>
 
-          {/* Level 3: Fortress */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -737,7 +631,7 @@ export default function RulesScreen() {
                   color={state.strictnessLevel === 'fortress' ? '#F43F5E' : '#A8B5B0'}
                 />
                 <Text style={[styles.modeCardTitle, state.strictnessLevel === 'fortress' && { color: '#F43F5E' }]}>
-                  Level 3: Fortress (Hardcore Hourglass)
+                  Fortress
                 </Text>
               </View>
               <View style={[styles.radioCircle, state.strictnessLevel === 'fortress' && styles.radioCircleActiveFortress]}>
@@ -745,26 +639,25 @@ export default function RulesScreen() {
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Maximum Hardcore Mode: 0ms Instant Interception (Accessibility Service) + Device Administrator Mode (prevents uninstall/force-stop) + complete Settings lockdown.
+              Maximum protection: instant lockouts, blocks Settings, and prevents uninstalling while active.
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Grace Extension & Cognitive Friction Settings */}
+        {/* Extra Time (+2 Min) */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>GRACE EXTENSION & FRICTION</Text>
+            <Text style={styles.cardSection}>EXTRA TIME (+2 MIN)</Text>
             <View style={[styles.currentBadge, state.frictionEnabled ? styles.modeBadgeCumul : styles.currentBadgeDirect]}>
               <Text style={styles.currentBadgeText}>
-                {state.frictionEnabled ? 'FRICTION GATE' : 'DIRECT (+2M)'}
+                {state.frictionEnabled ? 'CHALLENGE' : 'INSTANT'}
               </Text>
             </View>
           </View>
           <Text style={styles.cardExplainer}>
-            At 2m and 1m remaining, you get a top pop-up notification with a +2m extension button. Configure how extensions unlock:
+            When you have 2 minutes or 1 minute left, a notification offers 2 extra minutes. Choose how it unlocks:
           </Text>
 
-          {/* Option 1: Direct Instant Extension */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -778,18 +671,17 @@ export default function RulesScreen() {
                   size={20}
                   color={!state.frictionEnabled ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Instant Extension (No Friction)</Text>
+                <Text style={styles.modeCardTitle}>Instant (+2 Min)</Text>
               </View>
               <View style={[styles.radioCircle, !state.frictionEnabled && styles.radioCircleActive]}>
                 {!state.frictionEnabled && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Pressing '+2m Extension' in the top notification banner or in the app immediately adds 2 minutes with zero challenge required.
+              One tap adds 2 minutes right away with no puzzle or delay.
             </Text>
           </TouchableOpacity>
 
-          {/* Option 2: Cognitive Challenge Required */}
           <TouchableOpacity
             style={[
               styles.modeCard,
@@ -803,21 +695,20 @@ export default function RulesScreen() {
                   size={20}
                   color={state.frictionEnabled ? '#2ED3A3' : '#A8B5B0'}
                 />
-                <Text style={styles.modeCardTitle}>Cognitive Friction Gate</Text>
+                <Text style={styles.modeCardTitle}>Quick Challenge</Text>
               </View>
               <View style={[styles.radioCircle, state.frictionEnabled && styles.radioCircleActive]}>
                 {state.frictionEnabled && <View style={styles.radioDot} />}
               </View>
             </View>
             <Text style={styles.modeCardDesc}>
-              Requires completing a cognitive challenge before the 2-minute extension is granted, breaking compulsive reflex loops.
+              Complete a brief puzzle or reflection first to make sure you really want extra time.
             </Text>
           </TouchableOpacity>
 
-          {/* Friction Customizer Sub-Card */}
           {state.frictionEnabled && (
             <View style={styles.frictionSubCard}>
-              <Text style={styles.frictionSubSection}>SELECT CHALLENGE TYPE</Text>
+              <Text style={styles.frictionSubSection}>CHALLENGE TYPE</Text>
               <View style={styles.challengeTypeRow}>
                 <TouchableOpacity
                   style={[styles.challengeTypeBtn, state.frictionType === 'math' && styles.challengeTypeBtnActive]}
@@ -828,7 +719,7 @@ export default function RulesScreen() {
                     color={state.frictionType === 'math' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'math' && styles.challengeTypeBtnTextActive]}>
-                    Math Problem
+                    Math
                   </Text>
                 </TouchableOpacity>
 
@@ -841,7 +732,7 @@ export default function RulesScreen() {
                     color={state.frictionType === 'pledge' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'pledge' && styles.challengeTypeBtnTextActive]}>
-                    Mindful Pledge
+                    Pledge
                   </Text>
                 </TouchableOpacity>
 
@@ -854,24 +745,23 @@ export default function RulesScreen() {
                     color={state.frictionType === 'memory' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'memory' && styles.challengeTypeBtnTextActive]}>
-                    Reverse Recall
+                    Recall
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Math Difficulty Selector */}
               {state.frictionType === 'math' && (
                 <View style={{ marginTop: 12 }}>
-                  <Text style={styles.frictionSubSection}>MATH DIFFICULTY LEVEL</Text>
+                  <Text style={styles.frictionSubSection}>MATH DIFFICULTY</Text>
                   <View style={styles.difficultyCardsRow}>
                     {(['easy', 'medium', 'hard'] as MathDifficulty[]).map((d) => {
                       const isActive = state.mathDifficulty === d;
                       const subtitle =
                         d === 'easy'
-                          ? 'Simple 1-digit sums (e.g. 8 + 7)'
+                          ? 'Quick addition & subtraction (e.g. 8 + 7)'
                           : d === 'medium'
                           ? 'Multiplication & sums (e.g. 7 × 8)'
-                          : 'Two-step equations (e.g. (14 × 3) + 15)';
+                          : 'Two-step math (e.g. (14 × 3) + 15)';
 
                       return (
                         <TouchableOpacity
@@ -895,27 +785,23 @@ export default function RulesScreen() {
           )}
         </View>
 
-        {/* Behavioral Psychology & Positive Redirect */}
+        {/* Mindful Habits */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>BEHAVIORAL INTERVENTIONS</Text>
-            <View style={styles.currentBadge}>
-              <Text style={styles.currentBadgeText}>PSYCHOLOGY</Text>
-            </View>
+            <Text style={styles.cardSection}>MINDFUL HABITS</Text>
           </View>
           <Text style={styles.cardExplainer}>
-            Science-backed cognitive friction and positive redirection tools to interrupt dopamine autopilot loops:
+            Small nudges that help break automatic scrolling:
           </Text>
 
-          {/* Breathe Before Scroll Switch Tile */}
           <View style={styles.behavioralRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                 <MaterialIcons name="air" size={18} color="#2ED3A3" />
-                <Text style={styles.behavioralTitle}>Breathe Before Scroll</Text>
+                <Text style={styles.behavioralTitle}>Breathe Before Opening</Text>
               </View>
               <Text style={styles.behavioralDesc}>
-                Displays a gentle 10-second breathwork circle whenever opening a guarded app with remaining allowance.
+                Shows a calm 10-second breathing pause when you open a guarded app.
               </Text>
             </View>
             <Switch
@@ -931,15 +817,14 @@ export default function RulesScreen() {
               style={styles.previewBreatheBtn}
               onPress={() => setBreatheModalVisible(true)}>
               <MaterialIcons name="play-circle-filled" size={16} color="#84E150" />
-              <Text style={styles.previewBreatheText}>Preview 10s Breathwork Circle</Text>
+              <Text style={styles.previewBreatheText}>Preview Breathing Pause</Text>
             </TouchableOpacity>
           )}
 
-          {/* Positive Replacement Target */}
           <View style={{ marginTop: 16 }}>
-            <Text style={styles.frictionSubSection}>PRODUCTIVE REPLACEMENT REDIRECT</Text>
+            <Text style={styles.frictionSubSection}>HEALTHY ALTERNATIVE</Text>
             <Text style={styles.behavioralDesc}>
-              When an addictive app locks, the overlay offers a one-tap shortcut to open a designated positive alternative:
+              When a guarded app locks, show a 1-tap shortcut to open:
             </Text>
 
             <View style={styles.replacementGrid}>
@@ -971,153 +856,34 @@ export default function RulesScreen() {
           </View>
         </View>
 
-        {/* Installed Apps Manager */}
+        {/* Manage Guarded Apps */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <View>
-              <Text style={styles.cardSection}>INSTALLED DEVICE APPS</Text>
-              <Text style={styles.cardCounter}>Guarding {guardedCount} of {state.monitoredApps.length} apps</Text>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={styles.cardSection}>GUARDED APPS</Text>
+              <Text style={styles.cardCounter}>Currently guarding {guardedCount} apps</Text>
             </View>
             <TouchableOpacity
-              style={styles.scanButton}
-              onPress={handleScanApps}
-              disabled={isScanning}>
-              {isScanning ? (
-                <ActivityIndicator size="small" color="#2ED3A3" />
-              ) : (
-                <>
-                  <MaterialIcons name="refresh" size={16} color="#2ED3A3" />
-                  <Text style={styles.scanButtonText}>Scan Apps</Text>
-                </>
-              )}
+              style={styles.manageAppsBtn}
+              onPress={() => setAddModalVisible(true)}>
+              <MaterialIcons name="add" size={16} color="#101A17" />
+              <Text style={styles.manageAppsBtnText}>Add / Search</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Search Box */}
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={18} color="#6E7A75" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search apps by name or package..."
-              placeholderTextColor="#6E7A75"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
-          {/* Filter Pills */}
-          <View style={styles.filterRow}>
-            <TouchableOpacity
-              style={[styles.filterPill, selectedFilter === 'all' && styles.filterPillActive]}
-              onPress={() => setSelectedFilter('all')}>
-              <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
-                All ({state.monitoredApps.length})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterPill, selectedFilter === 'guarded' && styles.filterPillActive]}
-              onPress={() => setSelectedFilter('guarded')}>
-              <Text style={[styles.filterText, selectedFilter === 'guarded' && styles.filterTextActive]}>
-                Guarded ({guardedCount})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterPill, selectedFilter === 'poison' && styles.filterPillActive]}
-              onPress={() => setSelectedFilter('poison')}>
-              <Text style={[styles.filterText, selectedFilter === 'poison' && styles.filterTextActive]}>
-                Social
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterPill, selectedFilter === 'game' && styles.filterPillActive]}
-              onPress={() => setSelectedFilter('game')}>
-              <Text style={[styles.filterText, selectedFilter === 'game' && styles.filterTextActive]}>
-                Games
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* App List */}
-          <View style={styles.appList}>
-            {filteredApps.slice(0, 40).map((app) => (
-              <View key={app.id} style={styles.appRow}>
-                {app.icon ? (
-                  <Image source={{ uri: app.icon }} style={styles.appIconImage} />
-                ) : (
-                  <View style={styles.appIconCircle}>
-                    <Text style={styles.appIconLetter}>{app.name[0] || '?'}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.appName} numberOfLines={1}>{app.name}</Text>
-                    {app.blocked ? (
-                      state.trackingMode === 'per_app' ? (
-                        <View style={[styles.perAppBadge, app.isLocked ? styles.perAppBadgeLocked : styles.perAppBadgeActive]}>
-                          <Text style={styles.perAppBadgeText}>
-                            {app.isLocked ? 'LOCKED' : `${Math.floor((app.remainingSeconds ?? (state.allowanceMinutes * 60)) / 60)}m left`}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={styles.appStatusBadgeTimed}>
-                          <Text style={styles.appStatusTimedText}>TIMED</Text>
-                        </View>
-                      )
-                    ) : (
-                      <View style={styles.appStatusBadgeExempt}>
-                        <Text style={styles.appStatusExemptText}>TIMING OFF</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.appPkg} numberOfLines={1}>{app.packageName}</Text>
-                </View>
-                <Switch
-                  value={app.blocked}
-                  onValueChange={() => handleToggleApp(app.id)}
-                  trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
-                  thumbColor={app.blocked ? '#2ED3A3' : '#6E7A75'}
-                />
-              </View>
-            ))}
-
-            {filteredApps.length === 0 && (
-              <Text style={styles.emptyText}>No applications found matching search.</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Custom Application Input */}
-        <View style={styles.card}>
-          <Text style={styles.cardSection}>GUARD CUSTOM PACKAGE</Text>
-          <Text style={styles.cardExplainer}>
-            Enter an Android package name directly to enforce restrictions:
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="App Name (e.g. Threads)"
-            placeholderTextColor="#6E7A75"
-            value={newAppName}
-            onChangeText={setNewAppName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Package Identifier (e.g. com.instagram.barcelona)"
-            placeholderTextColor="#6E7A75"
-            value={newPkgName}
-            onChangeText={setNewPkgName}
-          />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddCustomApp}>
-            <MaterialIcons name="add" size={18} color="#101A17" />
-            <Text style={styles.addButtonText}>Add Guarded Package</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Breathe Before Scroll Practice / Preview Modal */}
       <BreatheModal
         visible={breatheModalVisible}
         onClose={() => setBreatheModalVisible(false)}
-        appName="Twitter / Instagram"
+        appName="Instagram"
+      />
+
+      <AddAppModal
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
+        deviceApps={state.deviceApps || []}
+        monitoredApps={state.monitoredApps}
       />
     </View>
   );
@@ -1146,28 +912,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#A8B5B0',
     marginTop: 2,
-  },
-  batteryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#102822',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#1F5E4C',
-  },
-  batteryTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2ED3A3',
-  },
-  batterySubtitle: {
-    fontSize: 11,
-    color: '#A8B5B0',
-    marginTop: 2,
-    lineHeight: 15,
   },
   card: {
     backgroundColor: '#1E1E1E',
@@ -1320,177 +1064,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#84E150',
   },
   cardCounter: {
-    fontSize: 11,
-    color: '#84E150',
+    fontSize: 12,
+    color: '#A8B5B0',
     marginTop: 2,
-    fontWeight: '600',
   },
-  scanButton: {
+  manageAppsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#141414',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#1F5E4C',
-  },
-  scanButtonText: {
-    color: '#2ED3A3',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    color: '#FFFFFF',
-    fontSize: 13,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 14,
-  },
-  filterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-  },
-  filterPillActive: {
     backgroundColor: '#2ED3A3',
-    borderColor: '#2ED3A3',
-  },
-  filterText: {
-    fontSize: 11,
-    color: '#A8B5B0',
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: '#101A17',
-    fontWeight: '800',
-  },
-  appList: {
-    gap: 12,
-  },
-  appRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  appIconImage: {
-    width: 36,
-    height: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
   },
-  appIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appIconLetter: {
-    color: '#2ED3A3',
-    fontWeight: '800',
-    fontSize: 15,
-  },
-  appName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  appPkg: {
-    fontSize: 11,
-    color: '#6E7A75',
-  },
-  perAppBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  perAppBadgeLocked: {
-    backgroundColor: '#7F1D1D',
-  },
-  perAppBadgeActive: {
-    backgroundColor: '#102822',
-    borderWidth: 1,
-    borderColor: '#1F5E4C',
-  },
-  perAppBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  appStatusBadgeTimed: {
-    backgroundColor: '#102822',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#1F5E4C',
-  },
-  appStatusTimedText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#2ED3A3',
-  },
-  appStatusBadgeExempt: {
-    backgroundColor: '#262626',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  appStatusExemptText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#A8B5B0',
-  },
-  emptyText: {
-    color: '#6E7A75',
-    textAlign: 'center',
-    paddingVertical: 16,
+  manageAppsBtnText: {
+    color: '#101A17',
     fontSize: 12,
-  },
-  input: {
-    backgroundColor: '#141414',
-    borderRadius: 8,
-    padding: 12,
-    color: '#FFFFFF',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-    marginBottom: 10,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#2ED3A3',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  addButtonText: {
-    color: '#101A17',
     fontWeight: '800',
-    fontSize: 13,
   },
   currentBadgeDirect: {
     borderColor: '#84E150',

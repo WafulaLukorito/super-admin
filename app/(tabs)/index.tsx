@@ -9,18 +9,23 @@ import {
   Image,
   Alert,
   Linking,
+  Modal,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BlockerEngine, BlockerState } from '@/services/blockerEngine';
+import { BlockerEngine, BlockerState, TrackingMode } from '@/services/blockerEngine';
 import { FrictionChallengeModal } from '@/components/FrictionChallengeModal';
+import { AddAppModal } from '@/components/AddAppModal';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const [state, setState] = useState<BlockerState>(BlockerEngine.getState());
   const [modalVisible, setModalVisible] = useState(false);
-  const [dashboardFilter, setDashboardFilter] = useState<'all' | 'timed'>('all');
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [modeModalVisible, setModeModalVisible] = useState(false);
 
   useEffect(() => {
-    BlockerEngine.init().then((s) => setState(s));
+    BlockerEngine.init().then((s) => setState({ ...s }));
     const unsubscribe = BlockerEngine.subscribe((newState) => {
       setState({ ...newState });
     });
@@ -64,50 +69,66 @@ export default function DashboardScreen() {
   const handleToggleShield = () => {
     const res = BlockerEngine.toggleShield();
     if (res.error) {
-      Alert.alert('Protection Enforced', res.error);
+      Alert.alert('Limits Locked', res.error);
       return;
     }
     Alert.alert(
-      res.active ? 'Shield Engaged' : 'Shield Suspended',
+      res.active ? 'Limits Active' : 'Limits Paused',
       res.active
-        ? 'Time-block rules and foreground overlay enforcement are active.'
-        : 'App blocking is temporarily paused.'
+        ? 'Hourglass is actively watching your guarded apps.'
+        : 'Time limits are paused for now.'
     );
   };
 
   const handleToggleApp = (id: string) => {
-    const app = state.monitoredApps.find((a) => a.id === id);
     BlockerEngine.toggleAppBlock(id);
-    if (app) {
-      const willBeTimed = !app.blocked;
-      Alert.alert(
-        willBeTimed ? 'Timing Enabled' : 'Timing Disabled',
-        willBeTimed
-          ? `${app.name} is now included in your ${state.allowanceMinutes}m timer.`
-          : `Timing disabled for ${app.name}. You can use this app without time restrictions.`
-      );
-    }
+  };
+
+  const handleRemoveApp = (id: string, name: string) => {
+    Alert.alert(
+      `Remove ${name}?`,
+      `${name} will no longer be timed. You can add it back anytime with "+ Add App".`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => BlockerEngine.removeAppFromMonitored(id),
+        },
+      ]
+    );
+  };
+
+  const handleSelectMode = (mode: TrackingMode) => {
+    BlockerEngine.setTrackingMode(mode);
+    setModeModalVisible(false);
   };
 
   const handleClaimGrace = () => {
     if (state.graceClaimedInCurrentBlock) {
-      Alert.alert('Extension Limit', 'Strict anti-tamper rule: Maximum 1 extension allowed per block window.');
+      Alert.alert('Limit Reached', 'You already used your extra 2 minutes for this cycle.');
       return;
     }
 
     if (!state.frictionEnabled) {
       const result = BlockerEngine.claimFrictionGrace();
       if (result.success) {
-        Alert.alert('Extension Granted', result.message);
+        Alert.alert('Extra Time Added', result.message);
       } else {
-        Alert.alert('Extension Denied', result.message);
+        Alert.alert('Not Available', result.message);
       }
     } else {
       setModalVisible(true);
     }
   };
 
-  const displayedApps = dashboardFilter === 'timed' ? timedApps : state.monitoredApps;
+  const cycleLabel = state.windowMinutes === 120 ? '2-HOUR CYCLE' : '1-HOUR CYCLE';
+  const strictnessLabel =
+    state.strictnessLevel === 'fortress'
+      ? 'Fortress'
+      : state.strictnessLevel === 'disciplined'
+      ? 'Disciplined'
+      : 'Mindful';
 
   return (
     <View style={styles.container}>
@@ -124,7 +145,7 @@ export default function DashboardScreen() {
             </View>
             <View>
               <Text style={styles.appTitle}>HOURGLASS</Text>
-              <Text style={styles.appSubtitle}>Rolling Interval Time Blocker</Text>
+              <Text style={styles.appSubtitle}>Mindful limits for distracting apps</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -132,34 +153,29 @@ export default function DashboardScreen() {
             onPress={handleToggleShield}>
             <View style={[styles.liveDot, { backgroundColor: state.isShieldActive ? '#84E150' : '#F59E0B' }]} />
             <Text style={[styles.shieldStatusText, { color: state.isShieldActive ? '#2ED3A3' : '#F59E0B' }]}>
-              {state.isShieldActive ? 'ENFORCING' : 'PAUSED'}
+              {state.isShieldActive ? 'ACTIVE' : 'PAUSED'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Security / Anti-Tamper Status Bar */}
-        <View style={styles.tamperBar}>
-          <MaterialIcons name="lock" size={14} color="#2ED3A3" />
-          <Text style={styles.tamperText}>
-            Anti-Tamper: SystemClock.elapsedRealtime() hardware anchored
-          </Text>
-        </View>
-
-        {/* Mode & Window Preset Summary Pill */}
+        {/* Interactive Quick-Status Pills */}
         <View style={styles.summaryBar}>
-          <View style={styles.summaryPill}>
+          <TouchableOpacity
+            style={styles.summaryPill}
+            onPress={() => setModeModalVisible(true)}
+            activeOpacity={0.75}>
             <MaterialIcons
               name={isCumulative ? 'layers' : 'splitscreen'}
               size={14}
               color={isCumulative ? '#2ED3A3' : '#84E150'}
             />
             <Text style={[styles.summaryPillText, { color: isCumulative ? '#2ED3A3' : '#84E150' }]}>
-              {isCumulative ? 'CUMULATIVE' : 'PER-APP'}
+              {isCumulative ? 'Shared Pool' : 'Per-App'}
             </Text>
-          </View>
+            <MaterialIcons name="expand-more" size={14} color="#6E7A75" />
+          </TouchableOpacity>
 
-          {/* Active Context Profile Pill */}
-          <View
+          <TouchableOpacity
             style={[
               styles.summaryPill,
               {
@@ -170,7 +186,9 @@ export default function DashboardScreen() {
                   ? (activeProfile.id === 'bedtime' ? '#181730' : activeProfile.id === 'work' ? '#102822' : '#1B2B14')
                   : '#1E1E1E',
               },
-            ]}>
+            ]}
+            onPress={() => router.push('/(tabs)/rules')}
+            activeOpacity={0.75}>
             <MaterialIcons
               name={
                 activeProfile
@@ -195,14 +213,14 @@ export default function DashboardScreen() {
                   color: activeProfile
                     ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#2ED3A3' : '#84E150')
                     : '#A8B5B0',
-                  fontWeight: activeProfile ? '800' : '600',
                 },
               ]}>
-              {activeProfile ? activeProfile.name.toUpperCase() : 'OFF-PEAK'}
+              {activeProfile ? activeProfile.name : 'Standard'}
             </Text>
-          </View>
+            <MaterialIcons name="chevron-right" size={14} color="#6E7A75" />
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.summaryPill,
               {
@@ -210,10 +228,12 @@ export default function DashboardScreen() {
                   state.strictnessLevel === 'fortress'
                     ? '#F43F5E'
                     : state.strictnessLevel === 'disciplined'
-                    ? '#84E150'
-                    : '#2ED3A3',
+                    ? '#3C6E23'
+                    : '#1F5E4C',
               },
-            ]}>
+            ]}
+            onPress={() => router.push('/(tabs)/rules')}
+            activeOpacity={0.75}>
             <MaterialIcons
               name={
                 state.strictnessLevel === 'fortress'
@@ -243,9 +263,10 @@ export default function DashboardScreen() {
                       : '#2ED3A3',
                 },
               ]}>
-              {state.strictnessLevel.toUpperCase()}
+              {strictnessLabel}
             </Text>
-          </View>
+            <MaterialIcons name="chevron-right" size={14} color="#6E7A75" />
+          </TouchableOpacity>
         </View>
 
         {/* Bedtime Lockdown Banner */}
@@ -255,7 +276,7 @@ export default function DashboardScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.bedtimeBannerTitle}>Bedtime Lockdown Active</Text>
               <Text style={styles.bedtimeBannerDesc}>
-                Restful Sleep Shield active across midnight. Guarded apps are locked with 0m allowance until morning.
+                Protected sleep hours are active. Your guarded apps stay paused until morning.
               </Text>
             </View>
           </View>
@@ -265,19 +286,16 @@ export default function DashboardScreen() {
         <View style={[styles.card, (isCumulative && isLocked) ? styles.cardLocked : null]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>
-              {isCumulative
-                ? `CURRENT ${state.windowMinutes}-MINUTE WINDOW`
-                : `PER-APP STATUS (${timedAppsCount} TIMED)`}
+              {isCumulative ? cycleLabel : `APP TIMERS (${timedAppsCount} ACTIVE)`}
             </Text>
             <Text style={styles.cardHeaderExtra}>
               {isCumulative
-                ? (isLocked ? `Unlocks in ${windowRemainingMinutes}m ${windowRemainingSecsRemainder}s` : `Resets in ${windowRemainingMinutes}m`)
-                : `${lockedAppsCount} of ${timedAppsCount} apps locked`}
+                ? (isLocked ? `Unlocks in ${windowRemainingMinutes}m ${windowRemainingSecsRemainder}s` : `Resets in ${windowRemainingMinutes} min`)
+                : `${lockedAppsCount} of ${timedAppsCount} paused`}
             </Text>
           </View>
 
           {isCumulative ? (
-            /* Cumulative Shared Gauge */
             <>
               <View style={styles.timerCircle}>
                 <Text style={[styles.timerValue, isLocked ? styles.timerLockedValue : null]}>
@@ -286,11 +304,10 @@ export default function DashboardScreen() {
                     : `${String(remainingMinutes).padStart(2, '0')}:${String(remainingSecs).padStart(2, '0')}`}
                 </Text>
                 <Text style={styles.timerLabel}>
-                  {isLocked ? 'SHARED UNLOCK IN' : 'ALLOWANCE REMAINING'}
+                  {isLocked ? 'UNLOCKS IN' : 'TIME LEFT'}
                 </Text>
               </View>
 
-              {/* Progress Bar */}
               <View style={styles.progressContainer}>
                 <View
                   style={[
@@ -311,63 +328,61 @@ export default function DashboardScreen() {
               <View style={styles.statRow}>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>{state.allowanceMinutes}m</Text>
-                  <Text style={styles.statLabel}>Pool Limit</Text>
+                  <Text style={styles.statLabel}>Limit</Text>
                 </View>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>
                     {Math.floor(state.usedSecondsInBlock / 60)}m
                   </Text>
-                  <Text style={styles.statLabel}>Consumed</Text>
+                  <Text style={styles.statLabel}>Used</Text>
                 </View>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>
-                    {state.graceClaimedInCurrentBlock ? 'Claimed' : '1 Available'}
+                    {state.graceClaimedInCurrentBlock ? 'Used' : '1 left'}
                   </Text>
-                  <Text style={styles.statLabel}>Friction Grace</Text>
+                  <Text style={styles.statLabel}>Extra Time</Text>
                 </View>
               </View>
             </>
           ) : (
-            /* Per-App Overview Card */
             <>
               <View style={styles.timerCircle}>
                 <Text style={[styles.timerValue, lockedAppsCount > 0 ? styles.timerPerAppAlert : null]}>
-                  {lockedAppsCount > 0 ? `${lockedAppsCount} LOCKED` : 'ALL OPEN'}
+                  {lockedAppsCount > 0 ? `${lockedAppsCount} PAUSED` : 'ALL OPEN'}
                 </Text>
-                <Text style={styles.timerLabel}>INDEPENDENT APP TIMERS</Text>
+                <Text style={styles.timerLabel}>SEPARATE APP TIMERS</Text>
               </View>
 
               <Text style={styles.perAppSubtitle}>
-                Each app runs its own separate {state.allowanceMinutes}m limit and {state.windowMinutes}m rolling window. Using Twitter will not count against Instagram or YouTube.
+                Each app gets its own {state.allowanceMinutes}-minute limit every {state.windowMinutes === 120 ? '2 hours' : 'hour'}.
               </Text>
 
               <View style={styles.statRow}>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>{state.allowanceMinutes}m</Text>
-                  <Text style={styles.statLabel}>Per App Limit</Text>
+                  <Text style={styles.statLabel}>Per App</Text>
                 </View>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>{state.windowMinutes}m</Text>
-                  <Text style={styles.statLabel}>Rolling Window</Text>
+                  <Text style={styles.statLabel}>Cycle</Text>
                 </View>
                 <View style={styles.statCol}>
                   <Text style={styles.statNumber}>{timedAppsCount - lockedAppsCount}</Text>
-                  <Text style={styles.statLabel}>Available</Text>
+                  <Text style={styles.statLabel}>Open</Text>
                 </View>
               </View>
             </>
           )}
         </View>
 
-        {/* Lockdown Notice for Cumulative Mode */}
+        {/* Limit Reached Notice */}
         {isCumulative && isLocked ? (
           <View style={styles.lockNoticeBox}>
-            <MaterialIcons name="gavel" size={24} color="#F43F5E" />
+            <MaterialIcons name="hourglass-empty" size={22} color="#F43F5E" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.lockNoticeTitle}>Cumulative Pool Exhausted</Text>
+              <Text style={styles.lockNoticeTitle}>Time's Up for This Cycle</Text>
               <Text style={styles.lockNoticeBody}>
-                You have reached your {state.allowanceMinutes}m allowance for this {state.windowMinutes}m block.
-                All guarded apps unlock in {windowRemainingMinutes}m {windowRemainingSecsRemainder}s.
+                Your guarded apps will reopen in {windowRemainingMinutes}m {windowRemainingSecsRemainder}s.
               </Text>
               <TouchableOpacity
                 style={styles.positiveRedirectDashBtn}
@@ -376,14 +391,14 @@ export default function DashboardScreen() {
                 }}>
                 <MaterialIcons name="menu-book" size={15} color="#84E150" />
                 <Text style={styles.positiveRedirectDashText}>
-                  Read / Learn: Open {state.positiveRedirectAppName}
+                  Open {state.positiveRedirectAppName} Instead
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : null}
 
-        {/* Grace Extension Button */}
+        {/* Extra Time CTA */}
         <TouchableOpacity
           style={[
             styles.graceButton,
@@ -402,42 +417,32 @@ export default function DashboardScreen() {
               state.graceClaimedInCurrentBlock ? styles.graceButtonDisabledText : null,
             ]}>
             {state.graceClaimedInCurrentBlock
-              ? 'Extension Already Claimed For Current Block'
+              ? 'Extra Time Used for This Cycle'
               : state.frictionEnabled
-              ? `Claim +2m Grace (${state.frictionType === 'math' ? `Math: ${state.mathDifficulty.toUpperCase()}` : 'Mindful Pledge'})`
-              : 'Claim +2m Extension (Instant • No Challenge)'}
+              ? 'Need 2 More Minutes?'
+              : 'Add 2 Extra Minutes'}
           </Text>
         </TouchableOpacity>
 
-        {/* App Timing Controls Card with Toggle after each App */}
+        {/* Curated Guarded Apps Card */}
         <View style={styles.card}>
-          <View style={styles.appTimingHeader}>
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.cardTitle}>APP TIMING CONTROLS</Text>
+          <View style={styles.guardedHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={styles.cardTitle}>GUARDED APPS ({timedAppsCount})</Text>
               <Text style={styles.cardSubtitleText}>
-                Toggle ON to include in timer. Toggle OFF to disable timing.
+                Only these apps count toward your time limit.
               </Text>
             </View>
-            <View style={styles.filterPillGroup}>
-              <TouchableOpacity
-                style={[styles.smallFilterPill, dashboardFilter === 'all' && styles.smallFilterPillActive]}
-                onPress={() => setDashboardFilter('all')}>
-                <Text style={[styles.smallFilterText, dashboardFilter === 'all' && styles.smallFilterTextActive]}>
-                  All ({state.monitoredApps.length})
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.smallFilterPill, dashboardFilter === 'timed' && styles.smallFilterPillActive]}
-                onPress={() => setDashboardFilter('timed')}>
-                <Text style={[styles.smallFilterText, dashboardFilter === 'timed' && styles.smallFilterTextActive]}>
-                  Timed ({timedAppsCount})
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.addAppBtn}
+              onPress={() => setAddModalVisible(true)}>
+              <MaterialIcons name="add" size={16} color="#101A17" />
+              <Text style={styles.addAppBtnText}>Add App</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.appList}>
-            {displayedApps.map((app) => {
+            {state.monitoredApps.map((app) => {
               const isTimed = app.blocked;
               const appRem = app.remainingSeconds ?? totalAllowanceSeconds;
               const appRemMins = Math.floor(appRem / 60);
@@ -446,10 +451,9 @@ export default function DashboardScreen() {
               const appWinMins = Math.floor(appWindowRem / 60);
               const appIsLocked = isTimed && (app.isLocked ?? (appRem <= 0));
 
-              const percentUsed = Math.min(
-                100,
-                Math.max(0, ((totalAllowanceSeconds - appRem) / totalAllowanceSeconds) * 100)
-              );
+              const percentUsed = totalAllowanceSeconds > 0
+                ? Math.min(100, Math.max(0, ((totalAllowanceSeconds - appRem) / totalAllowanceSeconds) * 100))
+                : 100;
 
               return (
                 <View key={app.id} style={[styles.appCardRow, !isTimed && styles.appCardRowDisabled]}>
@@ -462,42 +466,41 @@ export default function DashboardScreen() {
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={[styles.appName, !isTimed && styles.appNameMuted]}>{app.name}</Text>
-                        {/* Status Badge */}
                         {isTimed ? (
                           !isCumulative ? (
                             <View style={[styles.appStatusBadge, appIsLocked ? styles.appStatusBadgeLocked : styles.appStatusBadgeOpen]}>
                               <Text style={styles.appStatusText}>
-                                {appIsLocked ? `LOCKED • ${appWinMins}m` : `${appRemMins}m ${appRemSecs}s left`}
+                                {appIsLocked ? `Paused • ${appWinMins}m` : `${appRemMins}m ${appRemSecs}s left`}
                               </Text>
                             </View>
                           ) : (
                             <View style={styles.appStatusBadgeTimed}>
-                              <Text style={styles.appStatusTimedText}>TIMED</Text>
+                              <Text style={styles.appStatusTimedText}>Guarded</Text>
                             </View>
                           )
                         ) : (
                           <View style={styles.appStatusBadgeExempt}>
-                            <Text style={styles.appStatusExemptText}>TIMING OFF</Text>
+                            <Text style={styles.appStatusExemptText}>Allowed</Text>
                           </View>
                         )}
                       </View>
-                      <Text style={styles.appPkg} numberOfLines={1}>{app.packageName}</Text>
                     </View>
 
-                    {/* Toggle Switch */}
-                    <View style={styles.toggleCell}>
-                      <Switch
-                        value={isTimed}
-                        onValueChange={() => handleToggleApp(app.id)}
-                        trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
-                        thumbColor={isTimed ? '#2ED3A3' : '#6E7A75'}
-                      />
-                    </View>
+                    <Switch
+                      value={isTimed}
+                      onValueChange={() => handleToggleApp(app.id)}
+                      trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
+                      thumbColor={isTimed ? '#2ED3A3' : '#6E7A75'}
+                    />
+                    <TouchableOpacity
+                      style={styles.removeAppBtn}
+                      onPress={() => handleRemoveApp(app.id, app.name)}>
+                      <MaterialIcons name="close" size={16} color="#6E7A75" />
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Per-App Individual Progress Bar if Timed */}
                   {!isCumulative && isTimed && (
                     <View style={styles.miniProgressContainer}>
                       <View
@@ -515,19 +518,73 @@ export default function DashboardScreen() {
               );
             })}
 
-            {displayedApps.length === 0 && (
-              <Text style={styles.emptyText}>No applications in this view.</Text>
+            {state.monitoredApps.length === 0 && (
+              <TouchableOpacity
+                style={styles.emptyAddCard}
+                onPress={() => setAddModalVisible(true)}>
+                <MaterialIcons name="add-circle-outline" size={24} color="#2ED3A3" />
+                <Text style={styles.emptyText}>Tap "+ Add App" to pick apps to guard.</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
       </ScrollView>
 
-      {/* Friction Challenge Modal */}
+      {/* Extra Time Friction Challenge Modal */}
       <FrictionChallengeModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSuccess={() => {}}
       />
+
+      {/* Searchable Installed Apps Picker Modal */}
+      <AddAppModal
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
+        deviceApps={state.deviceApps || []}
+        monitoredApps={state.monitoredApps}
+      />
+
+      {/* Quick Tracking Mode Switcher Modal */}
+      <Modal
+        visible={modeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModeModalVisible(false)}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setModeModalVisible(false)}>
+          <View style={styles.modeSheet}>
+            <Text style={styles.modeSheetTitle}>How Should Time Be Counted?</Text>
+            <TouchableOpacity
+              style={[styles.modeOption, isCumulative && styles.modeOptionActive]}
+              onPress={() => handleSelectMode('cumulative')}>
+              <MaterialIcons name="layers" size={20} color="#2ED3A3" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modeOptionTitle}>Shared Pool</Text>
+                <Text style={styles.modeOptionDesc}>
+                  All guarded apps share one {state.allowanceMinutes}-minute timer.
+                </Text>
+              </View>
+              {isCumulative && <MaterialIcons name="check-circle" size={20} color="#84E150" />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modeOption, !isCumulative && styles.modeOptionActive]}
+              onPress={() => handleSelectMode('per_app')}>
+              <MaterialIcons name="splitscreen" size={20} color="#84E150" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modeOptionTitle}>Separate App Timers</Text>
+                <Text style={styles.modeOptionDesc}>
+                  Each app gets its own {state.allowanceMinutes}-minute timer independently.
+                </Text>
+              </View>
+              {!isCumulative && <MaterialIcons name="check-circle" size={20} color="#84E150" />}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -546,7 +603,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   brandRow: {
     flexDirection: 'row',
@@ -606,17 +663,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1,
   },
-  tamperBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  tamperText: {
-    color: '#2ED3A3',
-    fontSize: 11,
-    fontWeight: '600',
-  },
   summaryBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -626,34 +672,17 @@ const styles = StyleSheet.create({
   summaryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: '#1E1E1E',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2C2C2C',
   },
   summaryPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  summaryPresetPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1E1E1E',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-  },
-  summaryPresetText: {
-    color: '#A8B5B0',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   card: {
     backgroundColor: '#1E1E1E',
@@ -673,8 +702,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  appTimingHeader: {
+  guardedHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 14,
+  },
+  addAppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2ED3A3',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  addAppBtnText: {
+    color: '#101A17',
+    fontSize: 12,
+    fontWeight: '800',
   },
   cardTitle: {
     color: '#A8B5B0',
@@ -691,31 +737,6 @@ const styles = StyleSheet.create({
     color: '#2ED3A3',
     fontSize: 12,
     fontWeight: '600',
-  },
-  filterPillGroup: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  smallFilterPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-  },
-  smallFilterPillActive: {
-    backgroundColor: '#2ED3A3',
-    borderColor: '#2ED3A3',
-  },
-  smallFilterText: {
-    color: '#A8B5B0',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  smallFilterTextActive: {
-    color: '#101A17',
-    fontWeight: '800',
   },
   timerCircle: {
     alignItems: 'center',
@@ -873,19 +894,16 @@ const styles = StyleSheet.create({
     color: '#6E7A75',
   },
   appName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
   },
   appNameMuted: {
     color: '#A8B5B0',
   },
-  appPkg: {
-    fontSize: 10,
-    color: '#6E7A75',
-  },
-  toggleCell: {
-    marginLeft: 8,
+  removeAppBtn: {
+    padding: 4,
+    marginLeft: 2,
   },
   appStatusBadge: {
     paddingHorizontal: 7,
@@ -916,18 +934,18 @@ const styles = StyleSheet.create({
   },
   appStatusText: {
     color: '#2ED3A3',
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
   },
   appStatusTimedText: {
     color: '#2ED3A3',
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
   },
   appStatusExemptText: {
     color: '#A8B5B0',
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
   },
   miniProgressContainer: {
     height: 4,
@@ -940,11 +958,16 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
+  emptyAddCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
   emptyText: {
-    color: '#6E7A75',
+    color: '#A8B5B0',
     fontSize: 12,
     textAlign: 'center',
-    paddingVertical: 12,
   },
   positiveRedirectDashBtn: {
     flexDirection: 'row',
@@ -983,6 +1006,51 @@ const styles = StyleSheet.create({
   bedtimeBannerDesc: {
     fontSize: 11,
     color: '#818CF8',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 12, 11, 0.85)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modeSheet: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    gap: 10,
+  },
+  modeSheetTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  modeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#141414',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  modeOptionActive: {
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
+  },
+  modeOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modeOptionDesc: {
+    fontSize: 11,
+    color: '#A8B5B0',
     marginTop: 2,
     lineHeight: 15,
   },

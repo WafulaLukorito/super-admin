@@ -24,9 +24,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Shield',
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="security" size={size || 24} color={color} />
+            <MaterialIcons name="hourglass-bottom" size={size || 24} color={color} />
           ),
         }}
       />
@@ -42,16 +42,16 @@ export default function TabLayout() {
       <Tabs.Screen
         name="audit"
         options={{
-          title: 'Audit Logs',
+          title: 'Insights',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="history" size={size || 24} color={color} />
+            <MaterialIcons name="insights" size={size || 24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="permissions"
         options={{
-          title: 'Permissions',
+          title: 'Setup',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="verified-user" size={size || 24} color={color} />
           ),

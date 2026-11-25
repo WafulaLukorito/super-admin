@@ -1,49 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { PermissionsService } from '@/services/permissionsService';
 import AppBlocker from '@/modules/app-blocker';
 
-export default function PermissionsScreen() {
-  const handleOpenUsage = () => {
-    PermissionsService.openUsageAccessSettings();
-  };
+export default function SetupScreen() {
+  const [accessActive, setAccessActive] = useState(false);
+  const [adminActive, setAdminActive] = useState(false);
 
-  const handleOpenOverlay = () => {
-    PermissionsService.openOverlaySettings();
-  };
-
-  const handleOpenBattery = () => {
-    PermissionsService.openBatteryOptimizationSettings();
-  };
-
-  const handleOpenNotifications = () => {
-    PermissionsService.openNotificationSettings();
-  };
-
-  const handleOpenAccessibility = () => {
-    AppBlocker.openAccessibilitySettings();
-  };
-
-  const handleRequestDeviceAdmin = () => {
-    AppBlocker.requestDeviceAdminActivation();
-  };
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setAccessActive(AppBlocker.isAccessibilityServiceActive());
+        setAdminActive(AppBlocker.isDeviceAdminActive());
+      } catch (e) {}
+    };
+    refresh();
+    const timer = setInterval(refresh, 2500);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>SYSTEM PERMISSIONS</Text>
+          <Text style={styles.title}>SETUP & PERMISSIONS</Text>
           <Text style={styles.subtitle}>
-            Critical Android system privileges required for uninterrupted background enforcement
+            Allow Hourglass to track app time and display break screens
           </Text>
         </View>
 
@@ -54,15 +44,15 @@ export default function PermissionsScreen() {
               <MaterialIcons name="insights" size={20} color="#2ED3A3" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.permName}>1. Usage Stats Access</Text>
+              <Text style={styles.permName}>1. App Usage Access</Text>
               <Text style={styles.permDesc}>
-                Allows Hourglass to read which app is currently in the foreground and track active minutes without battery drain.
+                Lets Hourglass see which app is open so it can count your active minutes.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenUsage}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => PermissionsService.openUsageAccessSettings()}>
             <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
-            <Text style={styles.actionButtonText}>Open Usage Access Settings</Text>
+            <Text style={styles.actionButtonText}>Open Usage Settings</Text>
           </TouchableOpacity>
         </View>
 
@@ -75,13 +65,13 @@ export default function PermissionsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>2. Display Over Other Apps</Text>
               <Text style={styles.permDesc}>
-                Required to render the full-screen blocking overlay when high-dopamine app allowances expire.
+                Lets Hourglass show the break screen when your time limit is reached.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenOverlay}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => PermissionsService.openOverlaySettings()}>
             <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
-            <Text style={styles.actionButtonText}>Open Overlay Permissions</Text>
+            <Text style={styles.actionButtonText}>Open Overlay Settings</Text>
           </TouchableOpacity>
         </View>
 
@@ -92,15 +82,15 @@ export default function PermissionsScreen() {
               <MaterialIcons name="battery-alert" size={20} color="#84E150" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.permName}>3. Battery Optimization Exemption</Text>
+              <Text style={styles.permName}>3. Unrestricted Battery</Text>
               <Text style={styles.permDesc}>
-                Prevents OEM battery killers (MIUI, OneUI, ColorOS) from killing the Foreground Service daemon in deep Doze mode.
+                Keeps your timer running reliably in the background without Android pausing it.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenBattery}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => PermissionsService.openBatteryOptimizationSettings()}>
             <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
-            <Text style={styles.actionButtonText}>Exempt from Battery Optimization</Text>
+            <Text style={styles.actionButtonText}>Allow Background Activity</Text>
           </TouchableOpacity>
         </View>
 
@@ -111,66 +101,72 @@ export default function PermissionsScreen() {
               <MaterialIcons name="notifications" size={20} color="#818CF8" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.permName}>4. Foreground Notifications</Text>
+              <Text style={styles.permName}>4. Notifications</Text>
               <Text style={styles.permDesc}>
-                Maintains Android persistent low-priority daemon status with START_STICKY crash recovery.
+                Sends 2-minute and 1-minute heads-up alerts with an option for extra time.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenNotifications}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => PermissionsService.openNotificationSettings()}>
             <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
-            <Text style={styles.actionButtonText}>Configure App Notifications</Text>
+            <Text style={styles.actionButtonText}>Configure Notifications</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Permission 5: Accessibility Service (Fortress Tier) */}
+        {/* Permission 5: Instant Lock Service */}
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={[styles.iconCircle, { backgroundColor: '#2B1419' }]}>
               <MaterialIcons name="bolt" size={20} color="#F43F5E" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.permName}>5. 0ms Accessibility Interceptor (Fortress)</Text>
+              <View style={styles.permTitleRow}>
+                <Text style={styles.permName}>5. Instant Lock (Fortress)</Text>
+                {accessActive && (
+                  <View style={styles.activeBadge}>
+                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.permDesc}>
-                Enables zero-latency instant overlay blocking (catches app launches in 0ms with zero flicker).
+                Catches blocked app opens right away with no delay when Fortress mode is on.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#E11D48', borderColor: '#F43F5E' }]} onPress={handleOpenAccessibility}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#E11D48', borderColor: '#F43F5E' }]}
+            onPress={() => AppBlocker.openAccessibilitySettings()}>
             <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
             <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Open Accessibility Settings</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Permission 6: Device Administrator (Fortress Tier) */}
+        {/* Permission 6: Uninstall Protection */}
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={[styles.iconCircle, { backgroundColor: '#2B1419' }]}>
               <MaterialIcons name="admin-panel-settings" size={20} color="#F43F5E" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.permName}>6. Device Administrator (Fortress)</Text>
+              <View style={styles.permTitleRow}>
+                <Text style={styles.permName}>6. Uninstall Protection (Fortress)</Text>
+                {adminActive && (
+                  <View style={styles.activeBadge}>
+                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.permDesc}>
-                Prevents uninstalling or force-stopping Hourglass while active block rules or lockdowns are in effect.
+                Prevents removing or stopping Hourglass while an active lock is in place.
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#BE123C', borderColor: '#F43F5E' }]} onPress={handleRequestDeviceAdmin}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#BE123C', borderColor: '#F43F5E' }]}
+            onPress={() => AppBlocker.requestDeviceAdminActivation()}>
             <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
-            <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Activate Device Administrator</Text>
+            <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Enable Uninstall Protection</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Anti-Tamper Verification Card */}
-        <View style={styles.infoBox}>
-          <MaterialIcons name="verified-user" size={22} color="#2ED3A3" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.infoTitle}>Anti-Tamper Hardware Clock Lock</Text>
-            <Text style={styles.infoBody}>
-              All interval timers are synchronized against Android kernel uptime (SystemClock.elapsedRealtime()).
-              Attempting to bypass block limits by setting the phone clock forward in Android Settings is automatically blocked.
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -223,11 +219,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  permTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
   permName: {
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
+  },
+  activeBadge: {
+    backgroundColor: '#84E150',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  activeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#101A17',
   },
   permDesc: {
     fontSize: 12,
@@ -249,26 +263,5 @@ const styles = StyleSheet.create({
     color: '#2ED3A3',
     fontWeight: '700',
     fontSize: 12,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#102822',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1F5E4C',
-    marginTop: 8,
-  },
-  infoTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2ED3A3',
-    marginBottom: 4,
-  },
-  infoBody: {
-    fontSize: 12,
-    color: '#C8D3CF',
-    lineHeight: 16,
   },
 });

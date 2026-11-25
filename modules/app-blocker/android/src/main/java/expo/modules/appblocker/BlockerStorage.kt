@@ -131,7 +131,7 @@ object BlockerStorage {
 
     @Synchronized
     fun getMathDifficulty(context: Context): String {
-        return getPrefs(context).getString(KEY_MATH_DIFFICULTY, "easy") ?: "easy"
+        return getPrefs(context).getString(KEY_MATH_DIFFICULTY, "medium") ?: "medium"
     }
 
     @Synchronized

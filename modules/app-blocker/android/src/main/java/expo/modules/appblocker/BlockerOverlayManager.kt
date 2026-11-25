@@ -75,16 +75,16 @@ object BlockerOverlayManager {
 
                 val badge = TextView(context).apply {
                     if (isBedtime) {
-                        text = "RESTFUL SLEEP SHIELD • BEDTIME LOCKDOWN"
+                        text = "BEDTIME LOCKDOWN"
                         setTextColor(Color.parseColor("#818CF8"))
                     } else if (activeProfileName != null) {
-                        text = "HOURGLASS SHIELD • ${activeProfileName.uppercase()}"
+                        text = "HOURGLASS • ${activeProfileName.uppercase()}"
                         setTextColor(Color.parseColor("#2ED3A3"))
                     } else if (isPerApp) {
-                        text = "HOURGLASS SHIELD • ISOLATED APP LOCK"
+                        text = "HOURGLASS • APP LIMIT"
                         setTextColor(Color.parseColor("#F43F5E"))
                     } else {
-                        text = "HOURGLASS SHIELD • SHARED POOL"
+                        text = "HOURGLASS • SHARED LIMIT"
                         setTextColor(Color.parseColor("#F43F5E"))
                     }
                     textSize = 11f
@@ -95,9 +95,9 @@ object BlockerOverlayManager {
                 layout.addView(badge)
 
                 val title = TextView(context).apply {
-                    text = if (isBedtime) "RESTFUL SLEEP SHIELD" else "TIME LIMIT EXPIRED"
+                    text = if (isBedtime) "Time to Rest" else "Time's Up"
                     setTextColor(Color.WHITE)
-                    textSize = 22f
+                    textSize = 24f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
                     setPadding(0, 16, 0, 12)
@@ -114,11 +114,11 @@ object BlockerOverlayManager {
 
                 val message = TextView(context).apply {
                     text = if (isBedtime) {
-                        "$appFriendlyName is locked overnight to protect your circadian rhythm and sleep quality.\nRest peacefully—all guarded apps replenish in the morning."
+                        "$appFriendlyName is paused for the night.\nRest well — your apps unlock in the morning."
                     } else if (isPerApp) {
-                        "$appFriendlyName has reached its individual window limit.\nOther apps remain accessible under their own allowances."
+                        "You've used your $appFriendlyName time for this cycle.\nOther apps remain available."
                     } else {
-                        "$appFriendlyName and all guarded apps are locked under your shared window allowance."
+                        "You've reached your limit for this cycle.\n$appFriendlyName and your other guarded apps are paused."
                     }
                     setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 14f
@@ -141,7 +141,7 @@ object BlockerOverlayManager {
                 }
 
                 val countdownHeader = TextView(context).apply {
-                    text = if (isBedtime) "BEDTIME LOCK RESETS IN" else if (isPerApp) "$appFriendlyName UNLOCKS IN" else "WINDOW UNLOCKS IN"
+                    text = if (isBedtime) "UNLOCKS IN" else if (isPerApp) "$appFriendlyName UNLOCKS IN" else "RESETS IN"
                     setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#A8B5B0"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
@@ -163,11 +163,11 @@ object BlockerOverlayManager {
 
                 val countdownFooter = TextView(context).apply {
                     text = if (isBedtime) {
-                        "Zero screen-time lock. Allowance will replenish when bedtime schedule concludes."
+                        "Protected sleep hours are active until morning."
                     } else if (isPerApp) {
-                        "Your ${allowanceMins}m limit for this app will replenish when its ${windowMins}m window resets."
+                        "Your ${allowanceMins}m limit refreshes when this ${windowMins}m cycle ends."
                     } else {
-                        "Your ${allowanceMins}m shared allowance will replenish when the ${windowMins}m window resets."
+                        "Your ${allowanceMins}m shared limit refreshes when this ${windowMins}m cycle ends."
                     }
                     setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 12f
@@ -237,7 +237,7 @@ object BlockerOverlayManager {
                 layout.addView(positiveButton, positiveBtnParams)
 
                 val openAppButton = Button(context).apply {
-                    text = if (isBedtime) "🌙 Bedtime Active: Extensions Locked" else "Open Hourglass (+2m Grace Challenge)"
+                    text = if (isBedtime) "Sleep Hours Active" else "Need 2 More Minutes?"
                     val btnBg = GradientDrawable().apply {
                         setColor(if (isBedtime) Color.parseColor("#181730") else Color.parseColor("#262626"))
                         cornerRadius = 16f
@@ -403,7 +403,7 @@ object BlockerOverlayManager {
                 }
 
                 val badge = TextView(context).apply {
-                    text = "MINDFUL PAUSE • BREATHE BEFORE SCROLL"
+                    text = "MINDFUL PAUSE"
                     setTextColor(Color.parseColor("#2ED3A3"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
@@ -431,7 +431,7 @@ object BlockerOverlayManager {
                 layout.addView(title)
 
                 val prompt = TextView(context).apply {
-                    text = "Take a breath. 80% of app opens are compulsive autopilot reflex.\nAre you opening $appFriendlyName with intention?"
+                    text = "Take a slow breath.\nDo you want to open $appFriendlyName right now?"
                     setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 13f
                     gravity = Gravity.CENTER
@@ -475,9 +475,9 @@ object BlockerOverlayManager {
 
                 layout.addView(circle, circleParams)
 
-                // Close App Button (Behavioral Win)
+                // Close App Button
                 val closeAppButton = Button(context).apply {
-                    text = "Close $appFriendlyName (Behavioral Win)"
+                    text = "Skip Opening $appFriendlyName"
                     val btnBg = GradientDrawable().apply {
                         setColor(Color.parseColor("#2ED3A3"))
                         cornerRadius = 16f
