@@ -57,6 +57,10 @@ export default function DashboardScreen() {
     ? remainingAllowanceSeconds === 0 && state.isShieldActive
     : lockedAppsCount > 0 && state.isShieldActive;
 
+  const activeProfile = state.profilesEnabled && state.activeProfileId
+    ? state.timeProfiles.find((p) => p.id === state.activeProfileId)
+    : null;
+
   const handleToggleShield = () => {
     const res = BlockerEngine.toggleShield();
     if (res.error) {
@@ -145,9 +149,54 @@ export default function DashboardScreen() {
               color={isCumulative ? '#38BDF8' : '#A855F7'}
             />
             <Text style={[styles.summaryPillText, { color: isCumulative ? '#38BDF8' : '#A855F7' }]}>
-              {isCumulative ? 'CUMULATIVE POOL' : 'PER-APP ISOLATED'}
+              {isCumulative ? 'CUMULATIVE' : 'PER-APP'}
             </Text>
           </View>
+
+          {/* Active Context Profile Pill */}
+          <View
+            style={[
+              styles.summaryPill,
+              {
+                borderColor: activeProfile
+                  ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
+                  : '#334155',
+                backgroundColor: activeProfile
+                  ? (activeProfile.id === 'bedtime' ? '#1E1B4B' : activeProfile.id === 'work' ? '#451A03' : '#0B233E')
+                  : '#1E293B',
+              },
+            ]}>
+            <MaterialIcons
+              name={
+                activeProfile
+                  ? (activeProfile.id === 'bedtime'
+                      ? 'nights-stay'
+                      : activeProfile.id === 'work'
+                      ? 'business-center'
+                      : 'wb-twilight')
+                  : 'schedule'
+              }
+              size={13}
+              color={
+                activeProfile
+                  ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
+                  : '#94A3B8'
+              }
+            />
+            <Text
+              style={[
+                styles.summaryPillText,
+                {
+                  color: activeProfile
+                    ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
+                    : '#94A3B8',
+                  fontWeight: activeProfile ? '800' : '600',
+                },
+              ]}>
+              {activeProfile ? activeProfile.name.toUpperCase() : 'OFF-PEAK'}
+            </Text>
+          </View>
+
           <View
             style={[
               styles.summaryPill,
@@ -193,6 +242,19 @@ export default function DashboardScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Bedtime Lockdown Banner */}
+        {activeProfile?.id === 'bedtime' && (
+          <View style={styles.bedtimeBanner}>
+            <MaterialIcons name="nights-stay" size={20} color="#818CF8" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bedtimeBannerTitle}>Bedtime Lockdown Active</Text>
+              <Text style={styles.bedtimeBannerDesc}>
+                Restful Sleep Shield active across midnight. Guarded apps are locked with 0m allowance until morning.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Main Gauge Card */}
         <View style={[styles.card, (isCumulative && isLocked) ? styles.cardLocked : null]}>
@@ -858,5 +920,27 @@ const styles = StyleSheet.create({
     color: '#34D399',
     fontSize: 12,
     fontWeight: '700',
+  },
+  bedtimeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E1B4B',
+    borderWidth: 1,
+    borderColor: '#4338CA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  bedtimeBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#C7D2FE',
+  },
+  bedtimeBannerDesc: {
+    fontSize: 11,
+    color: '#818CF8',
+    marginTop: 2,
+    lineHeight: 15,
   },
 });

@@ -26,6 +26,8 @@ object BlockerStorage {
     private const val KEY_POSITIVE_REDIRECT_PKG = "positive_redirect_pkg"
     private const val KEY_POSITIVE_REDIRECT_NAME = "positive_redirect_name"
     private const val KEY_LAST_BREATHE_PREFIX = "last_breathe_ts"
+    private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
+    private const val KEY_ACTIVE_PROFILE_NAME = "active_profile_name"
 
     const val MODE_CUMULATIVE = "cumulative"
     const val MODE_PER_APP = "per_app"
@@ -228,6 +230,24 @@ object BlockerStorage {
     }
 
     @Synchronized
+    fun getActiveProfileId(context: Context): String? {
+        return getPrefs(context).getString(KEY_ACTIVE_PROFILE_ID, null)
+    }
+
+    @Synchronized
+    fun getActiveProfileName(context: Context): String? {
+        return getPrefs(context).getString(KEY_ACTIVE_PROFILE_NAME, null)
+    }
+
+    @Synchronized
+    fun setActiveProfile(context: Context, profileId: String?, profileName: String?) {
+        getPrefs(context).edit()
+            .putString(KEY_ACTIVE_PROFILE_ID, profileId)
+            .putString(KEY_ACTIVE_PROFILE_NAME, profileName)
+            .apply()
+    }
+
+    @Synchronized
     fun shouldShowBreathe(context: Context, packageName: String): Boolean {
         if (!isBreatheEnabled(context)) return false
         val prefs = getPrefs(context)
@@ -359,6 +379,10 @@ object BlockerStorage {
     fun claimGraceExtension(context: Context, packageName: String? = null): Boolean {
         checkAndResetWindowIfNeeded(context, packageName)
         val prefs = getPrefs(context)
+        val allowanceMins = prefs.getInt(KEY_ALLOWANCE_MINS, 7)
+        if (allowanceMins == 0 || getActiveProfileId(context) == "bedtime") {
+            return false // Bedtime lockdown has 0 allowance and no grace extensions permitted
+        }
         val graceClaimedKey = getGraceClaimedKey(context, packageName)
         val graceMillisKey = getGraceMillisKey(context, packageName)
         val alreadyClaimed = prefs.getBoolean(graceClaimedKey, false)

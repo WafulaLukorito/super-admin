@@ -119,6 +119,19 @@ class AppBlockerModule : Module() {
             true
         }
 
+        Function("setActiveProfile") { profileId: String?, profileName: String? ->
+            BlockerStorage.setActiveProfile(context, profileId, profileName)
+            true
+        }
+
+        Function("getActiveProfileId") {
+            BlockerStorage.getActiveProfileId(context)
+        }
+
+        Function("getActiveProfileName") {
+            BlockerStorage.getActiveProfileName(context)
+        }
+
         Function("isAccessibilityServiceActive") {
             BlockerAccessibilityService.isRunning
         }

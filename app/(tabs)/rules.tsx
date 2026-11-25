@@ -12,7 +12,17 @@ import {
   Alert,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BlockerEngine, BlockerState, MonitoredApp, TrackingMode, FrictionType, MathDifficulty, StrictnessLevel } from '@/services/blockerEngine';
+import {
+  BlockerEngine,
+  BlockerState,
+  MonitoredApp,
+  TrackingMode,
+  FrictionType,
+  MathDifficulty,
+  StrictnessLevel,
+  TimeProfile,
+  formatProfileTime,
+} from '@/services/blockerEngine';
 import { BreatheModal } from '@/components/BreatheModal';
 import AppBlocker from '@/modules/app-blocker';
 
@@ -24,6 +34,61 @@ export default function RulesScreen() {
   const [newPkgName, setNewPkgName] = useState('');
   const [newAppName, setNewAppName] = useState('');
   const [breatheModalVisible, setBreatheModalVisible] = useState(false);
+  const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null);
+
+  const handleToggleProfilesEnabled = (val: boolean) => {
+    BlockerEngine.setProfilesEnabled(val);
+    Alert.alert(
+      val ? 'Scheduled Profiles Enabled' : 'Scheduled Profiles Disabled',
+      val
+        ? 'Work Mode, Evening Wind-Down & Bedtime Lockdown dynamically govern windows based on current time of day.'
+        : 'Rules have reverted to your manual baseline window configuration.'
+    );
+  };
+
+  const handleResetProfiles = () => {
+    Alert.alert(
+      'Reset Profiles',
+      'Restore Work Mode (9 AM – 5 PM), Evening Wind-Down (7 PM – 10 PM), and Bedtime Lockdown (11 PM – 6 AM) defaults?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Defaults',
+          style: 'destructive',
+          onPress: () => {
+            BlockerEngine.resetProfilesToDefault();
+            Alert.alert('Profiles Reset', 'Smart context profiles restored to blanket defaults.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleProfile = (id: string) => {
+    BlockerEngine.toggleTimeProfile(id);
+  };
+
+  const handleAdjustProfileHour = (profile: TimeProfile, type: 'start' | 'end', delta: number) => {
+    if (type === 'start') {
+      const nextHour = (profile.startHour + delta + 24) % 24;
+      BlockerEngine.updateTimeProfile({ ...profile, startHour: nextHour });
+    } else {
+      const nextHour = (profile.endHour + delta + 24) % 24;
+      BlockerEngine.updateTimeProfile({ ...profile, endHour: nextHour });
+    }
+  };
+
+  const handleSetProfileAllowance = (profile: TimeProfile, mins: number) => {
+    BlockerEngine.updateTimeProfile({ ...profile, allowanceMinutes: mins });
+  };
+
+  const handleSetProfileWindow = (profile: TimeProfile, win: number) => {
+    BlockerEngine.updateTimeProfile({ ...profile, windowMinutes: win });
+  };
+
+  const handleSetProfileStrictness = (profile: TimeProfile, level: StrictnessLevel) => {
+    BlockerEngine.updateTimeProfile({ ...profile, strictnessOverride: level });
+  };
 
   useEffect(() => {
     BlockerEngine.init().then((s) => setState(s));
@@ -193,16 +258,272 @@ export default function RulesScreen() {
           </View>
         </View>
 
+        {/* Smart Context & Time-of-Day Profiles */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.cardSection}>SMART CONTEXT & TIME-OF-DAY</Text>
+              <Text style={styles.profileMasterSub}>
+                Work, Evening & Bedtime rules based on clock schedule
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity
+                style={styles.resetProfilesBtn}
+                onPress={handleResetProfiles}>
+                <MaterialIcons name="restore" size={14} color="#94A3B8" />
+                <Text style={styles.resetProfilesBtnText}>Defaults</Text>
+              </TouchableOpacity>
+              <Switch
+                value={state.profilesEnabled}
+                onValueChange={handleToggleProfilesEnabled}
+                trackColor={{ false: '#334155', true: '#0284C7' }}
+                thumbColor={state.profilesEnabled ? '#38BDF8' : '#64748B'}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.cardExplainer}>
+            Automatically switch allowances and strictness to match your day:
+          </Text>
+
+          {/* Profile Cards */}
+          <View style={{ gap: 12, marginTop: 4 }}>
+            {state.timeProfiles.map((profile) => {
+              const isActiveNow = state.profilesEnabled && state.activeProfileId === profile.id;
+              const isExpanded = expandedProfileId === profile.id;
+              const isBedtime = profile.id === 'bedtime';
+
+              return (
+                <View
+                  key={profile.id}
+                  style={[
+                    styles.profileCard,
+                    isActiveNow && (isBedtime ? styles.profileCardActiveBedtime : styles.profileCardActive),
+                    !profile.enabled && styles.profileCardDisabled,
+                  ]}>
+                  {/* Card Header */}
+                  <View style={styles.profileCardHeader}>
+                    <View style={styles.profileCardTitleRow}>
+                      <View
+                        style={[
+                          styles.profileIconWrap,
+                          isActiveNow && (isBedtime ? styles.profileIconWrapBedtime : styles.profileIconWrapActive),
+                        ]}>
+                        <MaterialIcons
+                          name={profile.icon as any}
+                          size={20}
+                          color={
+                            isActiveNow
+                              ? (isBedtime ? '#818CF8' : '#38BDF8')
+                              : (profile.enabled ? '#CBD5E1' : '#64748B')
+                          }
+                        />
+                      </View>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={[styles.profileName, !profile.enabled && styles.profileNameDisabled]}>
+                            {profile.name}
+                          </Text>
+                          {isActiveNow && (
+                            <View style={[styles.activePill, isBedtime && styles.activePillBedtime]}>
+                              <Text style={[styles.activePillText, isBedtime && styles.activePillTextBedtime]}>
+                                ACTIVE NOW
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.profileTagText}>{profile.tag}</Text>
+                      </View>
+                    </View>
+                    <Switch
+                      value={profile.enabled}
+                      onValueChange={() => handleToggleProfile(profile.id)}
+                      trackColor={{ false: '#334155', true: isBedtime ? '#4338CA' : '#0284C7' }}
+                      thumbColor={profile.enabled ? (isBedtime ? '#818CF8' : '#38BDF8') : '#64748B'}
+                    />
+                  </View>
+
+                  {/* Summary Bar */}
+                  <View style={styles.profileSummaryRow}>
+                    <View style={styles.profileSummaryItem}>
+                      <MaterialIcons name="schedule" size={13} color="#94A3B8" />
+                      <Text style={styles.profileSummaryText}>
+                        {formatProfileTime(profile.startHour, profile.startMinute)} – {formatProfileTime(profile.endHour, profile.endMinute)}
+                      </Text>
+                    </View>
+                    <View style={styles.profileSummaryItem}>
+                      <MaterialIcons name="timelapse" size={13} color="#94A3B8" />
+                      <Text style={styles.profileSummaryText}>
+                        {profile.allowanceMinutes === 0 ? '0m Hard Lock' : `${profile.allowanceMinutes}m / ${profile.windowMinutes}m`}
+                      </Text>
+                    </View>
+                    <View style={styles.profileSummaryItem}>
+                      <MaterialIcons name="security" size={13} color="#94A3B8" />
+                      <Text style={styles.profileSummaryText}>
+                        {profile.strictnessOverride.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Expand / Customize Toggle */}
+                  <TouchableOpacity
+                    style={styles.customizeToggleBtn}
+                    onPress={() => setExpandedProfileId(isExpanded ? null : profile.id)}>
+                    <Text style={styles.customizeToggleBtnText}>
+                      {isExpanded ? 'Hide Schedule Controls' : 'Adjust Schedule & Limits'}
+                    </Text>
+                    <MaterialIcons
+                      name={isExpanded ? 'expand-less' : 'expand-more'}
+                      size={18}
+                      color="#38BDF8"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Expandable Controls Area */}
+                  {isExpanded && (
+                    <View style={styles.profileEditArea}>
+                      {/* Hours Stepper Row */}
+                      <Text style={styles.editSectionTitle}>ACTIVE TIME WINDOW</Text>
+                      <View style={styles.timeStepperRow}>
+                        {/* Start Hour */}
+                        <View style={styles.stepperBox}>
+                          <Text style={styles.stepperLabel}>START TIME</Text>
+                          <View style={styles.stepperControls}>
+                            <TouchableOpacity
+                              style={styles.stepperBtn}
+                              onPress={() => handleAdjustProfileHour(profile, 'start', -1)}>
+                              <MaterialIcons name="remove" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.stepperValue}>
+                              {formatProfileTime(profile.startHour, profile.startMinute)}
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.stepperBtn}
+                              onPress={() => handleAdjustProfileHour(profile, 'start', 1)}>
+                              <MaterialIcons name="add" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* End Hour */}
+                        <View style={styles.stepperBox}>
+                          <Text style={styles.stepperLabel}>END TIME</Text>
+                          <View style={styles.stepperControls}>
+                            <TouchableOpacity
+                              style={styles.stepperBtn}
+                              onPress={() => handleAdjustProfileHour(profile, 'end', -1)}>
+                              <MaterialIcons name="remove" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.stepperValue}>
+                              {formatProfileTime(profile.endHour, profile.endMinute)}
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.stepperBtn}
+                              onPress={() => handleAdjustProfileHour(profile, 'end', 1)}>
+                              <MaterialIcons name="add" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Allowance Selector */}
+                      <Text style={styles.editSectionTitle}>ALLOWANCE PER WINDOW</Text>
+                      <View style={styles.chipsRow}>
+                        {[
+                          { label: '0m (Lock)', val: 0 },
+                          { label: '3m', val: 3 },
+                          { label: '5m', val: 5 },
+                          { label: '7m', val: 7 },
+                          { label: '10m', val: 10 },
+                          { label: '15m', val: 15 },
+                          { label: '20m', val: 20 },
+                        ].map((opt) => {
+                          const isSel = profile.allowanceMinutes === opt.val;
+                          return (
+                            <TouchableOpacity
+                              key={opt.val}
+                              style={[styles.chip, isSel && styles.chipActive]}
+                              onPress={() => handleSetProfileAllowance(profile, opt.val)}>
+                              <Text style={[styles.chipText, isSel && styles.chipTextActive]}>
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {/* Rolling Window Selector */}
+                      <Text style={styles.editSectionTitle}>ROLLING BLOCK INTERVAL</Text>
+                      <View style={styles.chipsRow}>
+                        {[
+                          { label: '1 Hour (60m)', val: 60 },
+                          { label: '2 Hours (120m)', val: 120 },
+                        ].map((opt) => {
+                          const isSel = profile.windowMinutes === opt.val;
+                          return (
+                            <TouchableOpacity
+                              key={opt.val}
+                              style={[styles.chip, isSel && styles.chipActive]}
+                              onPress={() => handleSetProfileWindow(profile, opt.val)}>
+                              <Text style={[styles.chipText, isSel && styles.chipTextActive]}>
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {/* Strictness Level Selector */}
+                      <Text style={styles.editSectionTitle}>STRICTNESS LEVEL OVERRIDE</Text>
+                      <View style={styles.chipsRow}>
+                        {(['mindful', 'disciplined', 'fortress'] as StrictnessLevel[]).map((lvl) => {
+                          const isSel = profile.strictnessOverride === lvl;
+                          return (
+                            <TouchableOpacity
+                              key={lvl}
+                              style={[
+                                styles.chip,
+                                isSel && (lvl === 'fortress' ? styles.chipActiveFortress : styles.chipActive),
+                              ]}
+                              onPress={() => handleSetProfileStrictness(profile, lvl)}>
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  isSel && (lvl === 'fortress' ? styles.chipTextActiveFortress : styles.chipTextActive),
+                                ]}>
+                                {lvl.toUpperCase()}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Window Presets Toggle */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardSection}>WINDOW INTERVAL & ALLOWANCE</Text>
+            <Text style={styles.cardSection}>MANUAL BASELINE WINDOW</Text>
             <View style={styles.currentBadge}>
               <Text style={styles.currentBadgeText}>
                 {state.allowanceMinutes}m / {state.windowMinutes}m
               </Text>
             </View>
           </View>
+          {state.profilesEnabled && state.activeProfileId && (
+            <View style={styles.activeProfileNotice}>
+              <MaterialIcons name="auto-awesome" size={14} color="#38BDF8" />
+              <Text style={styles.activeProfileNoticeText}>
+                Smart Profile active ({state.timeProfiles.find((p) => p.id === state.activeProfileId)?.name || 'Profile'}). Below settings apply during Off-Peak baseline hours.
+              </Text>
+            </View>
+          )}
           <Text style={styles.cardExplainer}>
             Toggle between standard 1-hour focus and extended 2-hour cycles:
           </Text>
@@ -1316,5 +1637,233 @@ const styles = StyleSheet.create({
   replacementTileTextActive: {
     color: '#F8FAFC',
     fontWeight: '700',
+  },
+  profileMasterSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  resetProfilesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1E293B',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  resetProfilesBtnText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  profileCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  profileCardActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0B233E',
+  },
+  profileCardActiveBedtime: {
+    borderColor: '#818CF8',
+    backgroundColor: '#1E1B4B',
+  },
+  profileCardDisabled: {
+    opacity: 0.5,
+  },
+  profileCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  profileCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+  },
+  profileIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  profileIconWrapActive: {
+    backgroundColor: '#0284C7',
+  },
+  profileIconWrapBedtime: {
+    backgroundColor: '#4338CA',
+  },
+  profileName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  profileNameDisabled: {
+    color: '#64748B',
+  },
+  profileTagText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  activePill: {
+    backgroundColor: '#0369A1',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  activePillBedtime: {
+    backgroundColor: '#3730A3',
+  },
+  activePillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
+  },
+  activePillTextBedtime: {
+    color: '#818CF8',
+  },
+  profileSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
+  profileSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  profileSummaryText: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    fontWeight: '600',
+  },
+  customizeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  customizeToggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#38BDF8',
+  },
+  profileEditArea: {
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+    paddingTop: 10,
+    marginTop: 4,
+    gap: 8,
+  },
+  editSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  timeStepperRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  stepperBox: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 8,
+  },
+  stepperLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  stepperControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    backgroundColor: '#1E293B',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  chipActive: {
+    borderColor: '#38BDF8',
+    backgroundColor: '#0369A1',
+  },
+  chipActiveFortress: {
+    borderColor: '#F43F5E',
+    backgroundColor: '#881337',
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  chipTextActiveFortress: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  activeProfileNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0B233E',
+    borderWidth: 1,
+    borderColor: '#0284C7',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 10,
+  },
+  activeProfileNoticeText: {
+    fontSize: 11,
+    color: '#38BDF8',
+    fontWeight: '600',
+    flex: 1,
   },
 });

@@ -67,10 +67,26 @@ object BlockerOverlayManager {
 
                 val trackingMode = BlockerStorage.getTrackingMode(context)
                 val isPerApp = trackingMode == BlockerStorage.MODE_PER_APP
+                val activeProfileId = BlockerStorage.getActiveProfileId(context)
+                val activeProfileName = BlockerStorage.getActiveProfileName(context)
+                val allowanceMins = BlockerStorage.getAllowanceMinutes(context)
+                val windowMins = BlockerStorage.getWindowMinutes(context)
+                val isBedtime = activeProfileId == "bedtime" || allowanceMins == 0
 
                 val badge = TextView(context).apply {
-                    text = if (isPerApp) "SUPER ADMIN SHIELD • ISOLATED APP LOCK" else "SUPER ADMIN SHIELD • SHARED POOL"
-                    setTextColor(Color.parseColor("#EF4444"))
+                    if (isBedtime) {
+                        text = "RESTFUL SLEEP SHIELD • BEDTIME LOCKDOWN"
+                        setTextColor(Color.parseColor("#818CF8"))
+                    } else if (activeProfileName != null) {
+                        text = "SUPER ADMIN SHIELD • ${activeProfileName.uppercase()}"
+                        setTextColor(Color.parseColor("#F59E0B"))
+                    } else if (isPerApp) {
+                        text = "SUPER ADMIN SHIELD • ISOLATED APP LOCK"
+                        setTextColor(Color.parseColor("#EF4444"))
+                    } else {
+                        text = "SUPER ADMIN SHIELD • SHARED POOL"
+                        setTextColor(Color.parseColor("#EF4444"))
+                    }
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
                     letterSpacing = 0.12f
@@ -79,7 +95,7 @@ object BlockerOverlayManager {
                 layout.addView(badge)
 
                 val title = TextView(context).apply {
-                    text = "TIME LIMIT EXPIRED"
+                    text = if (isBedtime) "RESTFUL SLEEP SHIELD" else "TIME LIMIT EXPIRED"
                     setTextColor(Color.WHITE)
                     textSize = 22f
                     typeface = Typeface.DEFAULT_BOLD
@@ -97,7 +113,9 @@ object BlockerOverlayManager {
                 }
 
                 val message = TextView(context).apply {
-                    text = if (isPerApp) {
+                    text = if (isBedtime) {
+                        "$appFriendlyName is locked overnight to protect your circadian rhythm and sleep quality.\nRest peacefully—all guarded apps replenish in the morning."
+                    } else if (isPerApp) {
                         "$appFriendlyName has reached its individual window limit.\nOther apps remain accessible under their own allowances."
                     } else {
                         "$appFriendlyName and all guarded apps are locked under your shared window allowance."
@@ -116,15 +134,15 @@ object BlockerOverlayManager {
                     val cardBg = GradientDrawable().apply {
                         setColor(Color.parseColor("#111827"))
                         cornerRadius = 24f
-                        setStroke(2, Color.parseColor("#1F2937"))
+                        setStroke(2, if (isBedtime) Color.parseColor("#312E81") else Color.parseColor("#1F2937"))
                     }
                     background = cardBg
                     setPadding(36, 28, 36, 28)
                 }
 
                 val countdownHeader = TextView(context).apply {
-                    text = if (isPerApp) "$appFriendlyName UNLOCKS IN" else "WINDOW UNLOCKS IN"
-                    setTextColor(Color.parseColor("#94A3B8"))
+                    text = if (isBedtime) "BEDTIME LOCK RESETS IN" else if (isPerApp) "$appFriendlyName UNLOCKS IN" else "WINDOW UNLOCKS IN"
+                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#94A3B8"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
                     letterSpacing = 0.12f
@@ -134,7 +152,7 @@ object BlockerOverlayManager {
 
                 val countdownTimer = TextView(context).apply {
                     text = "--:--"
-                    setTextColor(Color.parseColor("#F43F5E"))
+                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#F43F5E"))
                     textSize = 38f
                     typeface = Typeface.MONOSPACE
                     paint.isFakeBoldText = true
@@ -144,9 +162,9 @@ object BlockerOverlayManager {
                 countdownCard.addView(countdownTimer)
 
                 val countdownFooter = TextView(context).apply {
-                    val allowanceMins = BlockerStorage.getAllowanceMinutes(context)
-                    val windowMins = BlockerStorage.getWindowMinutes(context)
-                    text = if (isPerApp) {
+                    text = if (isBedtime) {
+                        "Zero screen-time lock. Allowance will replenish when bedtime schedule concludes."
+                    } else if (isPerApp) {
                         "Your ${allowanceMins}m limit for this app will replenish when its ${windowMins}m window resets."
                     } else {
                         "Your ${allowanceMins}m shared allowance will replenish when the ${windowMins}m window resets."
@@ -218,14 +236,14 @@ object BlockerOverlayManager {
                 layout.addView(positiveButton, positiveBtnParams)
 
                 val openAppButton = Button(context).apply {
-                    text = "Open Super Admin (+2m Grace Challenge)"
+                    text = if (isBedtime) "🌙 Bedtime Active: Extensions Locked" else "Open Super Admin (+2m Grace Challenge)"
                     val btnBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#1E293B"))
+                        setColor(if (isBedtime) Color.parseColor("#0F172A") else Color.parseColor("#1E293B"))
                         cornerRadius = 16f
-                        setStroke(2, Color.parseColor("#334155"))
+                        setStroke(2, if (isBedtime) Color.parseColor("#1E1B4B") else Color.parseColor("#334155"))
                     }
                     background = btnBg
-                    setTextColor(Color.parseColor("#38BDF8"))
+                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#38BDF8"))
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
                         hideOverlay(context)

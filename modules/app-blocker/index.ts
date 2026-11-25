@@ -38,6 +38,9 @@ interface AppBlockerNativeModule {
   getPositiveRedirectPackage(): string;
   getPositiveRedirectName(): string;
   setPositiveRedirect(packageName: string, appName: string): boolean;
+  setActiveProfile(profileId: string | null, profileName: string | null): boolean;
+  getActiveProfileId(): string | null;
+  getActiveProfileName(): string | null;
   isAccessibilityServiceActive(): boolean;
   openAccessibilitySettings(): boolean;
   isDeviceAdminActive(): boolean;
@@ -136,6 +139,18 @@ export const AppBlocker = {
 
   setPositiveRedirect(packageName: string, appName: string): boolean {
     return NativeAppBlocker?.setPositiveRedirect(packageName, appName) ?? false;
+  },
+
+  setActiveProfile(profileId: string | null, profileName: string | null): boolean {
+    return NativeAppBlocker?.setActiveProfile(profileId, profileName) ?? false;
+  },
+
+  getActiveProfileId(): string | null {
+    return NativeAppBlocker?.getActiveProfileId() ?? null;
+  },
+
+  getActiveProfileName(): string | null {
+    return NativeAppBlocker?.getActiveProfileName() ?? null;
   },
 
   isAccessibilityServiceActive(): boolean {

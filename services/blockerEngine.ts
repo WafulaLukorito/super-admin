@@ -6,6 +6,90 @@ export type FrictionType = 'math' | 'pledge' | 'memory';
 export type MathDifficulty = 'easy' | 'medium' | 'hard';
 export type StrictnessLevel = 'mindful' | 'disciplined' | 'fortress';
 
+export interface TimeProfile {
+  id: 'work' | 'evening' | 'bedtime' | string;
+  name: string;
+  tag: string;
+  icon: string;
+  enabled: boolean;
+  startHour: number; // 0-23
+  startMinute: number; // 0-59
+  endHour: number; // 0-23
+  endMinute: number; // 0-59
+  windowMinutes: number; // 60 or 120
+  allowanceMinutes: number; // e.g. 5m, 15m, 0m (Hard Lock)
+  strictnessOverride: StrictnessLevel;
+}
+
+export function isTimeInProfile(profile: TimeProfile, date = new Date()): boolean {
+  if (!profile.enabled) return false;
+  const currentMinutes = date.getHours() * 60 + date.getMinutes();
+  const startMinutes = profile.startHour * 60 + profile.startMinute;
+  const endMinutes = profile.endHour * 60 + profile.endMinute;
+
+  if (startMinutes === endMinutes) return false;
+
+  if (startMinutes < endMinutes) {
+    // Normal same-day window (e.g. 9:00 AM to 5:00 PM: 540 to 1020)
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } else {
+    // Overnight window (e.g. 11:00 PM to 6:00 AM: 1380 to 360)
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+}
+
+export function formatProfileTime(hour: number, minute: number): string {
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  const minStr = minute < 10 ? `0${minute}` : `${minute}`;
+  return `${h12}:${minStr} ${period}`;
+}
+
+export const DEFAULT_PROFILES: TimeProfile[] = [
+  {
+    id: 'work',
+    name: 'Work Mode',
+    tag: 'Deep focus during business hours. 5m / 1hr allowance.',
+    icon: 'business-center',
+    enabled: true,
+    startHour: 9,
+    startMinute: 0,
+    endHour: 17,
+    endMinute: 0,
+    windowMinutes: 60,
+    allowanceMinutes: 5,
+    strictnessOverride: 'disciplined',
+  },
+  {
+    id: 'evening',
+    name: 'Evening Wind-Down',
+    tag: 'Relaxed leisure & socializing. 15m / 2hr allowance.',
+    icon: 'wb-twilight',
+    enabled: true,
+    startHour: 19,
+    startMinute: 0,
+    endHour: 22,
+    endMinute: 0,
+    windowMinutes: 120,
+    allowanceMinutes: 15,
+    strictnessOverride: 'mindful',
+  },
+  {
+    id: 'bedtime',
+    name: 'Bedtime Lockdown',
+    tag: 'Zero screen time before sleep. Restful sleep shield (0m allowance).',
+    icon: 'nights-stay',
+    enabled: true,
+    startHour: 23,
+    startMinute: 0,
+    endHour: 6,
+    endMinute: 0,
+    windowMinutes: 60,
+    allowanceMinutes: 0,
+    strictnessOverride: 'fortress',
+  },
+];
+
 export interface MonitoredApp {
   id: string;
   name: string;
@@ -47,6 +131,14 @@ export interface BlockerState {
   monitoredApps: MonitoredApp[];
   auditLogs: AuditEvent[];
   lastUptimeAnchor: number;
+
+  // Milestone 5: Smart Context & Time-of-Day Profiles
+  profilesEnabled: boolean;
+  timeProfiles: TimeProfile[];
+  activeProfileId: string | null;
+  baselineWindowMinutes: number;
+  baselineAllowanceMinutes: number;
+  baselineStrictnessLevel: StrictnessLevel;
 }
 
 const STORAGE_KEY = '@super_admin_blocker_state_v3';
@@ -97,6 +189,12 @@ const INITIAL_STATE: BlockerState = {
     },
   ],
   lastUptimeAnchor: Date.now(),
+  profilesEnabled: true,
+  timeProfiles: DEFAULT_PROFILES,
+  activeProfileId: null,
+  baselineWindowMinutes: 60,
+  baselineAllowanceMinutes: 7,
+  baselineStrictnessLevel: 'mindful',
 };
 
 export class BlockerEngine {
@@ -109,12 +207,21 @@ export class BlockerEngine {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        this.state = { ...INITIAL_STATE, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored);
+        this.state = {
+          ...INITIAL_STATE,
+          ...parsed,
+          timeProfiles:
+            Array.isArray(parsed.timeProfiles) && parsed.timeProfiles.length > 0
+              ? parsed.timeProfiles
+              : DEFAULT_PROFILES,
+        };
       }
     } catch (err) {
       console.warn('Failed to load blocker state from AsyncStorage:', err);
     }
     this.isInitialized = true;
+    this.checkAndApplyActiveProfile();
     this.syncNative();
     this.syncFromNative();
     this.loadInstalledAppsFromDevice().catch(() => {});
@@ -123,6 +230,7 @@ export class BlockerEngine {
 
   static syncFromNative(): void {
     try {
+      this.checkAndApplyActiveProfile();
       const remainingSecs = AppBlocker.getRemainingSeconds();
       const windowRemainingSecs = AppBlocker.getWindowRemainingSeconds();
       const totalAllowanceSeconds = this.state.allowanceMinutes * 60;
@@ -262,6 +370,10 @@ export class BlockerEngine {
         this.state.positiveRedirectPackage,
         this.state.positiveRedirectAppName
       );
+      AppBlocker.setActiveProfile(
+        this.state.activeProfileId,
+        this.state.activeProfileId ? this.getActiveProfile()?.name || null : null
+      );
     } catch (e) {
       console.warn('Sync with native daemon error:', e);
     }
@@ -303,10 +415,19 @@ export class BlockerEngine {
   }
 
   static setPreset(type: '1h' | '2h'): void {
-    if (type === '1h') {
-      this.setRules(60, 7);
+    const win = type === '1h' ? 60 : 120;
+    const all = type === '1h' ? 7 : 15;
+    this.state.baselineWindowMinutes = win;
+    this.state.baselineAllowanceMinutes = all;
+    if (!this.state.profilesEnabled || !this.state.activeProfileId) {
+      this.setRules(win, all);
     } else {
-      this.setRules(120, 15);
+      this.addAuditLog(
+        'reset',
+        'Baseline Preset Configured',
+        `Baseline preset set to ${all}m / ${win}m. Active profile (${this.getActiveProfile()?.name}) controls limits until scheduled end.`
+      );
+      this.notify();
     }
   }
 
@@ -386,6 +507,7 @@ export class BlockerEngine {
   }
 
   static setStrictnessLevel(level: StrictnessLevel): void {
+    this.state.baselineStrictnessLevel = level;
     this.state.strictnessLevel = level;
     this.addAuditLog(
       'reset',
@@ -396,6 +518,112 @@ export class BlockerEngine {
         ? 'Disciplined Mode: Settings protection and locked shield active during lockouts.'
         : 'Mindful Mode: Gentle awareness and flexible shield controls active.'
     );
+    this.notify();
+  }
+
+  static evaluateActiveProfile(now = new Date()): TimeProfile | null {
+    if (!this.state.profilesEnabled) return null;
+    for (const p of this.state.timeProfiles) {
+      if (isTimeInProfile(p, now)) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  static getActiveProfile(): TimeProfile | null {
+    if (!this.state.activeProfileId) return null;
+    return this.state.timeProfiles.find((p) => p.id === this.state.activeProfileId) || null;
+  }
+
+  static checkAndApplyActiveProfile(): boolean {
+    if (!this.state.profilesEnabled) {
+      if (this.state.activeProfileId !== null) {
+        this.state.activeProfileId = null;
+        this.state.windowMinutes = this.state.baselineWindowMinutes;
+        this.state.allowanceMinutes = this.state.baselineAllowanceMinutes;
+        this.state.strictnessLevel = this.state.baselineStrictnessLevel;
+        this.addAuditLog('reset', 'Off-Peak Baseline Engaged', 'Scheduled profiles disabled; restored baseline rules.');
+        this.notify();
+        return true;
+      }
+      return false;
+    }
+
+    const active = this.evaluateActiveProfile();
+    const activeId = active ? active.id : null;
+
+    if (activeId !== this.state.activeProfileId) {
+      this.state.activeProfileId = activeId;
+      if (active) {
+        this.state.windowMinutes = active.windowMinutes;
+        this.state.allowanceMinutes = active.allowanceMinutes;
+        this.state.strictnessLevel = active.strictnessOverride || this.state.strictnessLevel;
+        this.addAuditLog(
+          'reset',
+          `Profile Activated: ${active.name}`,
+          `${active.allowanceMinutes}m allowance per ${active.windowMinutes}m window (${active.strictnessOverride.toUpperCase()} mode). Scheduled until ${formatProfileTime(active.endHour, active.endMinute)}.`
+        );
+      } else {
+        // Revert to baseline
+        this.state.windowMinutes = this.state.baselineWindowMinutes;
+        this.state.allowanceMinutes = this.state.baselineAllowanceMinutes;
+        this.state.strictnessLevel = this.state.baselineStrictnessLevel;
+        this.addAuditLog(
+          'reset',
+          'Off-Peak Schedule Active',
+          `Reverted to baseline rules: ${this.state.baselineAllowanceMinutes}m / ${this.state.baselineWindowMinutes}m window.`
+        );
+      }
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  static setProfilesEnabled(enabled: boolean): void {
+    this.state.profilesEnabled = enabled;
+    this.addAuditLog(
+      'reset',
+      enabled ? 'Scheduled Auto-Profiles Activated' : 'Scheduled Auto-Profiles Disabled',
+      enabled
+        ? 'Work Mode, Evening Wind-Down & Bedtime Lockdown dynamically control limits.'
+        : 'Rules revert to manual baseline configuration.'
+    );
+    this.checkAndApplyActiveProfile();
+    this.notify();
+  }
+
+  static updateTimeProfile(updated: TimeProfile): void {
+    this.state.timeProfiles = this.state.timeProfiles.map((p) =>
+      p.id === updated.id ? updated : p
+    );
+    this.addAuditLog(
+      'reset',
+      `Profile Configured: ${updated.name}`,
+      `${formatProfileTime(updated.startHour, updated.startMinute)} – ${formatProfileTime(updated.endHour, updated.endMinute)} | ${updated.allowanceMinutes}m / ${updated.windowMinutes}m (${updated.strictnessOverride.toUpperCase()})`
+    );
+    if (this.state.activeProfileId === updated.id) {
+      this.state.windowMinutes = updated.windowMinutes;
+      this.state.allowanceMinutes = updated.allowanceMinutes;
+      this.state.strictnessLevel = updated.strictnessOverride;
+    }
+    this.checkAndApplyActiveProfile();
+    this.notify();
+  }
+
+  static toggleTimeProfile(id: string): void {
+    const profile = this.state.timeProfiles.find((p) => p.id === id);
+    if (!profile) return;
+    const willEnable = !profile.enabled;
+    this.updateTimeProfile({ ...profile, enabled: willEnable });
+  }
+
+  static resetProfilesToDefault(): void {
+    this.state.timeProfiles = DEFAULT_PROFILES;
+    this.state.profilesEnabled = true;
+    this.addAuditLog('reset', 'Profiles Reset to Defaults', 'Work (9-5), Evening (7-10), and Bedtime (11-6) restored.');
+    this.checkAndApplyActiveProfile();
     this.notify();
   }
 
