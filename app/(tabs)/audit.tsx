@@ -24,13 +24,13 @@ export default function AuditScreen() {
   const getLogIcon = (type: AuditEvent['type']) => {
     switch (type) {
       case 'lock':
-        return { name: 'gavel', color: '#EF4444' };
+        return { name: 'gavel', color: '#F43F5E' };
       case 'extension':
-        return { name: 'alarm-add', color: '#F59E0B' };
+        return { name: 'alarm-add', color: '#84E150' };
       case 'tamper_check':
-        return { name: 'verified', color: '#10B981' };
+        return { name: 'verified', color: '#2ED3A3' };
       default:
-        return { name: 'cached', color: '#38BDF8' };
+        return { name: 'cached', color: '#2ED3A3' };
     }
   };
 
@@ -65,22 +65,22 @@ export default function AuditScreen() {
           <Text style={styles.cardSection}>PEAK URGE HOURS (IMPULSE ATTEMPTS)</Text>
           <View style={styles.urgeRow}>
             <View style={styles.urgeItem}>
-              <View style={[styles.urgeBar, { height: 28, backgroundColor: '#38BDF8' }]} />
+              <View style={[styles.urgeBar, { height: 28, backgroundColor: '#2ED3A3' }]} />
               <Text style={styles.urgeTime}>Morning</Text>
               <Text style={styles.urgeCount}>2</Text>
             </View>
             <View style={styles.urgeItem}>
-              <View style={[styles.urgeBar, { height: 50, backgroundColor: '#F59E0B' }]} />
+              <View style={[styles.urgeBar, { height: 50, backgroundColor: '#84E150' }]} />
               <Text style={styles.urgeTime}>Midday</Text>
               <Text style={styles.urgeCount}>6</Text>
             </View>
             <View style={styles.urgeItem}>
-              <View style={[styles.urgeBar, { height: 75, backgroundColor: '#EF4444' }]} />
+              <View style={[styles.urgeBar, { height: 75, backgroundColor: '#F43F5E' }]} />
               <Text style={styles.urgeTime}>Evening</Text>
               <Text style={styles.urgeCount}>11</Text>
             </View>
             <View style={styles.urgeItem}>
-              <View style={[styles.urgeBar, { height: 42, backgroundColor: '#8B5CF6' }]} />
+              <View style={[styles.urgeBar, { height: 42, backgroundColor: '#818CF8' }]} />
               <Text style={styles.urgeTime}>Late Night</Text>
               <Text style={styles.urgeCount}>4</Text>
             </View>
@@ -92,7 +92,7 @@ export default function AuditScreen() {
 
         {/* Anti-Tamper Security Banner */}
         <View style={styles.securityCard}>
-          <MaterialIcons name="security" size={20} color="#10B981" />
+          <MaterialIcons name="security" size={20} color="#2ED3A3" />
           <View style={{ flex: 1 }}>
             <Text style={styles.securityTitle}>Monotonic Clock Integrity</Text>
             <Text style={styles.securitySubtitle}>
@@ -138,7 +138,7 @@ export default function AuditScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#141414',
   },
   scrollContent: {
     padding: 20,
@@ -151,26 +151,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     letterSpacing: 1.2,
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 4,
   },
   card: {
-    backgroundColor: '#131C2E',
+    backgroundColor: '#1E1E1E',
     borderRadius: 16,
     padding: 20,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   cardSection: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#2ED3A3',
     letterSpacing: 1.2,
     marginBottom: 14,
   },
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     height: 100,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#2C2C2C',
   },
   urgeItem: {
     alignItems: 'center',
@@ -193,39 +193,39 @@ const styles = StyleSheet.create({
   },
   urgeTime: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   urgeCount: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   urgeFooter: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 12,
     lineHeight: 16,
   },
   securityCard: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: '#06281E',
+    backgroundColor: '#102822',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#065F46',
+    borderColor: '#1F5E4C',
     marginBottom: 18,
     alignItems: 'center',
   },
   securityTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#34D399',
+    color: '#2ED3A3',
     marginBottom: 2,
   },
   securitySubtitle: {
     fontSize: 11,
-    color: '#A7F3D0',
+    color: '#A8B5B0',
     lineHeight: 15,
   },
   logHeader: {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   resetAction: {
     fontSize: 12,
-    color: '#F87171',
+    color: '#F43F5E',
     fontWeight: '600',
   },
   logList: {
@@ -262,15 +262,15 @@ const styles = StyleSheet.create({
   logItemTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   logItemTime: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#6E7A75',
   },
   logItemDetail: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     lineHeight: 16,
   },
 });

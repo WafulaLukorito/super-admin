@@ -37,7 +37,7 @@ export default function RootLayout() {
 
   // If fonts are still loading and no error yet, show dark background rather than returning null
   if (!loaded && !error) {
-    return <View style={{ flex: 1, backgroundColor: '#0B0F19' }} />;
+    return <View style={{ flex: 1, backgroundColor: '#141414' }} />;
   }
 
   return (

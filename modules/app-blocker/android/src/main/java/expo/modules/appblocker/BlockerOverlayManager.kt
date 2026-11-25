@@ -61,7 +61,7 @@ object BlockerOverlayManager {
                 val layout = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
-                    setBackgroundColor(Color.parseColor("#0B0F19"))
+                    setBackgroundColor(Color.parseColor("#141414"))
                     setPadding(50, 50, 50, 50)
                 }
 
@@ -79,13 +79,13 @@ object BlockerOverlayManager {
                         setTextColor(Color.parseColor("#818CF8"))
                     } else if (activeProfileName != null) {
                         text = "HOURGLASS SHIELD • ${activeProfileName.uppercase()}"
-                        setTextColor(Color.parseColor("#F59E0B"))
+                        setTextColor(Color.parseColor("#2ED3A3"))
                     } else if (isPerApp) {
                         text = "HOURGLASS SHIELD • ISOLATED APP LOCK"
-                        setTextColor(Color.parseColor("#EF4444"))
+                        setTextColor(Color.parseColor("#F43F5E"))
                     } else {
                         text = "HOURGLASS SHIELD • SHARED POOL"
-                        setTextColor(Color.parseColor("#EF4444"))
+                        setTextColor(Color.parseColor("#F43F5E"))
                     }
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
@@ -120,7 +120,7 @@ object BlockerOverlayManager {
                     } else {
                         "$appFriendlyName and all guarded apps are locked under your shared window allowance."
                     }
-                    setTextColor(Color.parseColor("#94A3B8"))
+                    setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 14f
                     gravity = Gravity.CENTER
                     setPadding(0, 0, 0, 24)
@@ -132,9 +132,9 @@ object BlockerOverlayManager {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     val cardBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#111827"))
+                        setColor(Color.parseColor("#1E1E1E"))
                         cornerRadius = 24f
-                        setStroke(2, if (isBedtime) Color.parseColor("#312E81") else Color.parseColor("#1F2937"))
+                        setStroke(2, if (isBedtime) Color.parseColor("#3730A3") else Color.parseColor("#2C2C2C"))
                     }
                     background = cardBg
                     setPadding(36, 28, 36, 28)
@@ -142,7 +142,7 @@ object BlockerOverlayManager {
 
                 val countdownHeader = TextView(context).apply {
                     text = if (isBedtime) "BEDTIME LOCK RESETS IN" else if (isPerApp) "$appFriendlyName UNLOCKS IN" else "WINDOW UNLOCKS IN"
-                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#94A3B8"))
+                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#A8B5B0"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
                     letterSpacing = 0.12f
@@ -169,7 +169,7 @@ object BlockerOverlayManager {
                     } else {
                         "Your ${allowanceMins}m shared allowance will replenish when the ${windowMins}m window resets."
                     }
-                    setTextColor(Color.parseColor("#64748B"))
+                    setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 12f
                     gravity = Gravity.CENTER
                 }
@@ -186,11 +186,12 @@ object BlockerOverlayManager {
                 val homeButton = Button(context).apply {
                     text = "Return to Home Screen"
                     val btnBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#2563EB"))
+                        setColor(Color.parseColor("#2ED3A3"))
                         cornerRadius = 16f
                     }
                     background = btnBg
-                    setTextColor(Color.WHITE)
+                    setTextColor(Color.parseColor("#101A17"))
+                    typeface = Typeface.DEFAULT_BOLD
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
                         hideOverlay(context)
@@ -212,12 +213,12 @@ object BlockerOverlayManager {
                 val positiveButton = Button(context).apply {
                     text = "🌱 Positive Alternative: Open $positiveName"
                     val btnBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#064E3B"))
+                        setColor(Color.parseColor("#102822"))
                         cornerRadius = 16f
-                        setStroke(2, Color.parseColor("#059669"))
+                        setStroke(2, Color.parseColor("#1F5E4C"))
                     }
                     background = btnBg
-                    setTextColor(Color.parseColor("#34D399"))
+                    setTextColor(Color.parseColor("#84E150"))
                     textSize = 13f
                     typeface = Typeface.DEFAULT_BOLD
                     setPadding(30, 20, 30, 20)
@@ -238,12 +239,12 @@ object BlockerOverlayManager {
                 val openAppButton = Button(context).apply {
                     text = if (isBedtime) "🌙 Bedtime Active: Extensions Locked" else "Open Hourglass (+2m Grace Challenge)"
                     val btnBg = GradientDrawable().apply {
-                        setColor(if (isBedtime) Color.parseColor("#0F172A") else Color.parseColor("#1E293B"))
+                        setColor(if (isBedtime) Color.parseColor("#181730") else Color.parseColor("#262626"))
                         cornerRadius = 16f
-                        setStroke(2, if (isBedtime) Color.parseColor("#1E1B4B") else Color.parseColor("#334155"))
+                        setStroke(2, if (isBedtime) Color.parseColor("#3730A3") else Color.parseColor("#2C2C2C"))
                     }
                     background = btnBg
-                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#38BDF8"))
+                    setTextColor(if (isBedtime) Color.parseColor("#818CF8") else Color.parseColor("#2ED3A3"))
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
                         hideOverlay(context)
@@ -397,13 +398,13 @@ object BlockerOverlayManager {
                 val layout = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
-                    setBackgroundColor(Color.parseColor("#090D16"))
+                    setBackgroundColor(Color.parseColor("#141414"))
                     setPadding(50, 50, 50, 50)
                 }
 
                 val badge = TextView(context).apply {
                     text = "MINDFUL PAUSE • BREATHE BEFORE SCROLL"
-                    setTextColor(Color.parseColor("#10B981"))
+                    setTextColor(Color.parseColor("#2ED3A3"))
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
                     letterSpacing = 0.14f
@@ -431,7 +432,7 @@ object BlockerOverlayManager {
 
                 val prompt = TextView(context).apply {
                     text = "Take a breath. 80% of app opens are compulsive autopilot reflex.\nAre you opening $appFriendlyName with intention?"
-                    setTextColor(Color.parseColor("#94A3B8"))
+                    setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 13f
                     gravity = Gravity.CENTER
                     setPadding(0, 0, 0, 24)
@@ -444,8 +445,8 @@ object BlockerOverlayManager {
                     gravity = Gravity.CENTER
                     val circleBg = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(Color.parseColor("#064E3B"))
-                        setStroke(4, Color.parseColor("#10B981"))
+                        setColor(Color.parseColor("#102822"))
+                        setStroke(4, Color.parseColor("#2ED3A3"))
                     }
                     background = circleBg
                 }
@@ -455,7 +456,7 @@ object BlockerOverlayManager {
 
                 val breathPhase = TextView(context).apply {
                     text = "Inhale..."
-                    setTextColor(Color.parseColor("#A7F3D0"))
+                    setTextColor(Color.parseColor("#A8B5B0"))
                     textSize = 14f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
@@ -464,7 +465,7 @@ object BlockerOverlayManager {
 
                 val breathCountdown = TextView(context).apply {
                     text = "10"
-                    setTextColor(Color.WHITE)
+                    setTextColor(Color.parseColor("#84E150"))
                     textSize = 40f
                     typeface = Typeface.MONOSPACE
                     paint.isFakeBoldText = true
@@ -478,11 +479,11 @@ object BlockerOverlayManager {
                 val closeAppButton = Button(context).apply {
                     text = "Close $appFriendlyName (Behavioral Win)"
                     val btnBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#059669"))
+                        setColor(Color.parseColor("#2ED3A3"))
                         cornerRadius = 16f
                     }
                     background = btnBg
-                    setTextColor(Color.WHITE)
+                    setTextColor(Color.parseColor("#101A17"))
                     textSize = 14f
                     typeface = Typeface.DEFAULT_BOLD
                     setPadding(30, 20, 30, 20)
@@ -504,12 +505,12 @@ object BlockerOverlayManager {
                 val proceedButton = Button(context).apply {
                     text = "Pause & Proceed (Wait 10s...)"
                     val btnBg = GradientDrawable().apply {
-                        setColor(Color.parseColor("#1E293B"))
+                        setColor(Color.parseColor("#262626"))
                         cornerRadius = 16f
-                        setStroke(2, Color.parseColor("#334155"))
+                        setStroke(2, Color.parseColor("#2C2C2C"))
                     }
                     background = btnBg
-                    setTextColor(Color.parseColor("#64748B"))
+                    setTextColor(Color.parseColor("#6E7A75"))
                     isEnabled = false
                     setPadding(30, 20, 30, 20)
                     setOnClickListener {
@@ -532,11 +533,11 @@ object BlockerOverlayManager {
                             breathPhase.text = "Deliberate"
                             proceedButton.isEnabled = true
                             proceedButton.text = "Continue to $appFriendlyName"
-                            proceedButton.setTextColor(Color.parseColor("#38BDF8"))
+                            proceedButton.setTextColor(Color.parseColor("#2ED3A3"))
                             val activeBg = GradientDrawable().apply {
-                                setColor(Color.parseColor("#0B233E"))
+                                setColor(Color.parseColor("#102822"))
                                 cornerRadius = 16f
-                                setStroke(2, Color.parseColor("#0284C7"))
+                                setStroke(2, Color.parseColor("#1F5E4C"))
                             }
                             proceedButton.background = activeBg
                             return

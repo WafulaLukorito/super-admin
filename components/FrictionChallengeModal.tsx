@@ -221,7 +221,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <MaterialIcons
                 name="calculate"
                 size={16}
-                color={challengeType === 'math' ? '#FFFFFF' : '#64748B'}
+                color={challengeType === 'math' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'math' && styles.activeTabText]}>
                 Math Challenge
@@ -236,7 +236,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <MaterialIcons
                 name="edit-note"
                 size={16}
-                color={challengeType === 'pledge' ? '#FFFFFF' : '#64748B'}
+                color={challengeType === 'pledge' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'pledge' && styles.activeTabText]}>
                 Mindful Pledge
@@ -252,7 +252,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <MaterialIcons
                 name="psychology"
                 size={16}
-                color={challengeType === 'memory' ? '#FFFFFF' : '#64748B'}
+                color={challengeType === 'memory' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'memory' && styles.activeTabText]}>
                 Reverse Recall
@@ -278,7 +278,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
                   ))}
                 </View>
                 <TouchableOpacity style={styles.refreshBtn} onPress={handleRefreshProblem}>
-                  <MaterialIcons name="refresh" size={16} color="#38BDF8" />
+                  <MaterialIcons name="refresh" size={16} color="#2ED3A3" />
                 </TouchableOpacity>
               </View>
 
@@ -287,7 +287,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="Enter answer..."
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#6E7A75"
                 keyboardType="numeric"
                 value={mathAnswer}
                 onChangeText={setMathAnswer}
@@ -301,7 +301,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="Type the exact phrase..."
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#6E7A75"
                 value={pledgeText}
                 onChangeText={setPledgeText}
                 autoCapitalize="none"
@@ -313,7 +313,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               <View style={styles.difficultyRow}>
                 <Text style={styles.difficultyLabel}>Reverse Digit Memory Challenge</Text>
                 <TouchableOpacity style={styles.refreshBtn} onPress={handleResetMemory}>
-                  <MaterialIcons name="refresh" size={16} color="#38BDF8" />
+                  <MaterialIcons name="refresh" size={16} color="#2ED3A3" />
                 </TouchableOpacity>
               </View>
 
@@ -329,7 +329,7 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
                   <TextInput
                     style={styles.input}
                     placeholder="Enter reversed digits (e.g. 4937)..."
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#6E7A75"
                     keyboardType="numeric"
                     value={memoryAnswer}
                     onChangeText={setMemoryAnswer}
@@ -357,16 +357,16 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(10, 12, 11, 0.90)',
     justifyContent: 'center',
     padding: 20,
   },
   card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 18,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   headerRow: {
     flexDirection: 'row',
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   badge: {
-    color: '#F59E0B',
+    color: '#84E150',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -391,14 +391,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     lineHeight: 18,
     marginBottom: 16,
   },
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#0F172A',
-    borderRadius: 8,
+    backgroundColor: '#141414',
+    borderRadius: 10,
     padding: 4,
     marginBottom: 16,
     gap: 4,
@@ -410,27 +410,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#2ED3A3',
   },
   tabText: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#A8B5B0',
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
   },
   challengeBox: {
-    backgroundColor: '#0F172A',
-    borderRadius: 10,
+    backgroundColor: '#141414',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   difficultyRow: {
     flexDirection: 'row',
@@ -439,12 +439,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#262626',
   },
   difficultyLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#A8B5B0',
     letterSpacing: 0.5,
   },
   diffPills: {
@@ -455,31 +455,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
   },
   diffPillActive: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#2ED3A3',
   },
   diffPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   diffPillTextActive: {
-    color: '#0F172A',
+    color: '#101A17',
   },
   refreshBtn: {
     padding: 4,
   },
   equationLabel: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     marginBottom: 4,
   },
   equation: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#38BDF8',
+    color: '#84E150',
     textAlign: 'center',
     marginVertical: 10,
     letterSpacing: 1,
@@ -487,19 +487,19 @@ const styles = StyleSheet.create({
   pledgePrompt: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FCD34D',
+    color: '#2ED3A3',
     fontStyle: 'italic',
     marginVertical: 6,
     lineHeight: 20,
   },
   input: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     borderRadius: 8,
     padding: 12,
     color: '#FFFFFF',
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#333333',
     marginTop: 8,
   },
   buttonRow: {
@@ -509,37 +509,37 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#334155',
+    borderRadius: 10,
+    backgroundColor: '#262626',
     alignItems: 'center',
   },
   cancelText: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontWeight: '600',
     fontSize: 14,
   },
   submitButton: {
     flex: 1.5,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#10B981',
+    borderRadius: 10,
+    backgroundColor: '#2ED3A3',
     alignItems: 'center',
   },
   submitText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: '#101A17',
+    fontWeight: '800',
     fontSize: 14,
   },
   memoryDigits: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#84E150',
     letterSpacing: 6,
     marginVertical: 12,
   },
   memoryCountdownText: {
     fontSize: 12,
-    color: '#F59E0B',
+    color: '#2ED3A3',
     fontWeight: '700',
   },
 });

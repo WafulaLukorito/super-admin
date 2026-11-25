@@ -114,19 +114,24 @@ export default function DashboardScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.appTitle}>HOURGLASS</Text>
-            <Text style={styles.appSubtitle}>Rolling Interval Time Blocker</Text>
+          <View style={styles.brandRow}>
+            <View style={styles.brandIconWrap}>
+              <Image
+                source={require('@/assets/images/hourglass_mint_icon_only_transparent.png')}
+                style={styles.brandIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View>
+              <Text style={styles.appTitle}>HOURGLASS</Text>
+              <Text style={styles.appSubtitle}>Rolling Interval Time Blocker</Text>
+            </View>
           </View>
           <TouchableOpacity
             style={[styles.shieldStatusBadge, state.isShieldActive ? styles.shieldActive : styles.shieldPaused]}
             onPress={handleToggleShield}>
-            <MaterialIcons
-              name={state.isShieldActive ? 'shield' : 'pause-circle'}
-              size={16}
-              color="#FFFFFF"
-            />
-            <Text style={styles.shieldStatusText}>
+            <View style={[styles.liveDot, { backgroundColor: state.isShieldActive ? '#84E150' : '#F59E0B' }]} />
+            <Text style={[styles.shieldStatusText, { color: state.isShieldActive ? '#2ED3A3' : '#F59E0B' }]}>
               {state.isShieldActive ? 'ENFORCING' : 'PAUSED'}
             </Text>
           </TouchableOpacity>
@@ -134,7 +139,7 @@ export default function DashboardScreen() {
 
         {/* Security / Anti-Tamper Status Bar */}
         <View style={styles.tamperBar}>
-          <MaterialIcons name="lock" size={14} color="#10B981" />
+          <MaterialIcons name="lock" size={14} color="#2ED3A3" />
           <Text style={styles.tamperText}>
             Anti-Tamper: SystemClock.elapsedRealtime() hardware anchored
           </Text>
@@ -146,9 +151,9 @@ export default function DashboardScreen() {
             <MaterialIcons
               name={isCumulative ? 'layers' : 'splitscreen'}
               size={14}
-              color={isCumulative ? '#38BDF8' : '#A855F7'}
+              color={isCumulative ? '#2ED3A3' : '#84E150'}
             />
-            <Text style={[styles.summaryPillText, { color: isCumulative ? '#38BDF8' : '#A855F7' }]}>
+            <Text style={[styles.summaryPillText, { color: isCumulative ? '#2ED3A3' : '#84E150' }]}>
               {isCumulative ? 'CUMULATIVE' : 'PER-APP'}
             </Text>
           </View>
@@ -159,11 +164,11 @@ export default function DashboardScreen() {
               styles.summaryPill,
               {
                 borderColor: activeProfile
-                  ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
-                  : '#334155',
+                  ? (activeProfile.id === 'bedtime' ? '#3730A3' : activeProfile.id === 'work' ? '#1F5E4C' : '#3C6E23')
+                  : '#2C2C2C',
                 backgroundColor: activeProfile
-                  ? (activeProfile.id === 'bedtime' ? '#1E1B4B' : activeProfile.id === 'work' ? '#451A03' : '#0B233E')
-                  : '#1E293B',
+                  ? (activeProfile.id === 'bedtime' ? '#181730' : activeProfile.id === 'work' ? '#102822' : '#1B2B14')
+                  : '#1E1E1E',
               },
             ]}>
             <MaterialIcons
@@ -179,8 +184,8 @@ export default function DashboardScreen() {
               size={13}
               color={
                 activeProfile
-                  ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
-                  : '#94A3B8'
+                  ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#2ED3A3' : '#84E150')
+                  : '#A8B5B0'
               }
             />
             <Text
@@ -188,8 +193,8 @@ export default function DashboardScreen() {
                 styles.summaryPillText,
                 {
                   color: activeProfile
-                    ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#F59E0B' : '#38BDF8')
-                    : '#94A3B8',
+                    ? (activeProfile.id === 'bedtime' ? '#818CF8' : activeProfile.id === 'work' ? '#2ED3A3' : '#84E150')
+                    : '#A8B5B0',
                   fontWeight: activeProfile ? '800' : '600',
                 },
               ]}>
@@ -205,8 +210,8 @@ export default function DashboardScreen() {
                   state.strictnessLevel === 'fortress'
                     ? '#F43F5E'
                     : state.strictnessLevel === 'disciplined'
-                    ? '#A855F7'
-                    : '#10B981',
+                    ? '#84E150'
+                    : '#2ED3A3',
               },
             ]}>
             <MaterialIcons
@@ -222,8 +227,8 @@ export default function DashboardScreen() {
                 state.strictnessLevel === 'fortress'
                   ? '#F43F5E'
                   : state.strictnessLevel === 'disciplined'
-                  ? '#A855F7'
-                  : '#10B981'
+                  ? '#84E150'
+                  : '#2ED3A3'
               }
             />
             <Text
@@ -234,8 +239,8 @@ export default function DashboardScreen() {
                     state.strictnessLevel === 'fortress'
                       ? '#F43F5E'
                       : state.strictnessLevel === 'disciplined'
-                      ? '#A855F7'
-                      : '#10B981',
+                      ? '#84E150'
+                      : '#2ED3A3',
                 },
               ]}>
               {state.strictnessLevel.toUpperCase()}
@@ -293,9 +298,11 @@ export default function DashboardScreen() {
                     {
                       width: `${Math.min(
                         100,
-                        (remainingAllowanceSeconds / totalAllowanceSeconds) * 100
+                        totalAllowanceSeconds > 0
+                          ? (remainingAllowanceSeconds / totalAllowanceSeconds) * 100
+                          : 0
                       )}%`,
-                      backgroundColor: isLocked ? '#EF4444' : '#38BDF8',
+                      backgroundColor: isLocked ? '#F43F5E' : '#84E150',
                     },
                   ]}
                 />
@@ -355,7 +362,7 @@ export default function DashboardScreen() {
         {/* Lockdown Notice for Cumulative Mode */}
         {isCumulative && isLocked ? (
           <View style={styles.lockNoticeBox}>
-            <MaterialIcons name="gavel" size={24} color="#EF4444" />
+            <MaterialIcons name="gavel" size={24} color="#F43F5E" />
             <View style={{ flex: 1 }}>
               <Text style={styles.lockNoticeTitle}>Cumulative Pool Exhausted</Text>
               <Text style={styles.lockNoticeBody}>
@@ -367,7 +374,7 @@ export default function DashboardScreen() {
                 onPress={() => {
                   Linking.openURL(`market://details?id=${state.positiveRedirectPackage}`).catch(() => {});
                 }}>
-                <MaterialIcons name="menu-book" size={15} color="#34D399" />
+                <MaterialIcons name="menu-book" size={15} color="#84E150" />
                 <Text style={styles.positiveRedirectDashText}>
                   Read / Learn: Open {state.positiveRedirectAppName}
                 </Text>
@@ -387,7 +394,7 @@ export default function DashboardScreen() {
           <MaterialIcons
             name={state.frictionEnabled ? 'psychology' : 'bolt'}
             size={20}
-            color={state.graceClaimedInCurrentBlock ? '#64748B' : '#FFFFFF'}
+            color={state.graceClaimedInCurrentBlock ? '#6E7A75' : '#101A17'}
           />
           <Text
             style={[
@@ -484,8 +491,8 @@ export default function DashboardScreen() {
                       <Switch
                         value={isTimed}
                         onValueChange={() => handleToggleApp(app.id)}
-                        trackColor={{ false: '#334155', true: '#0284C7' }}
-                        thumbColor={isTimed ? '#38BDF8' : '#64748B'}
+                        trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
+                        thumbColor={isTimed ? '#2ED3A3' : '#6E7A75'}
                       />
                     </View>
                   </View>
@@ -498,7 +505,7 @@ export default function DashboardScreen() {
                           styles.miniProgressBar,
                           {
                             width: `${100 - percentUsed}%`,
-                            backgroundColor: appIsLocked ? '#EF4444' : '#10B981',
+                            backgroundColor: appIsLocked ? '#F43F5E' : '#84E150',
                           },
                         ]}
                       />
@@ -528,7 +535,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#141414',
   },
   scrollContent: {
     padding: 20,
@@ -541,16 +548,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 11,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  brandIcon: {
+    width: 30,
+    height: 30,
+  },
   appTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     letterSpacing: 1.5,
   },
   appSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
+    fontSize: 12,
+    color: '#A8B5B0',
+    marginTop: 1,
   },
   shieldStatusBadge: {
     flexDirection: 'row',
@@ -559,15 +586,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
   },
   shieldActive: {
-    backgroundColor: '#047857',
+    backgroundColor: '#102822',
+    borderColor: '#2ED3A3',
   },
   shieldPaused: {
-    backgroundColor: '#B45309',
+    backgroundColor: '#292012',
+    borderColor: '#F59E0B',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   shieldStatusText: {
-    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 11,
     letterSpacing: 1,
@@ -579,12 +613,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tamperText: {
-    color: '#10B981',
+    color: '#2ED3A3',
     fontSize: 11,
     fontWeight: '600',
   },
   summaryBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 14,
   },
@@ -592,12 +627,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   summaryPillText: {
     fontSize: 10,
@@ -608,29 +643,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   summaryPresetText: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontSize: 11,
     fontWeight: '600',
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E1E1E',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   cardLocked: {
-    borderColor: '#DC2626',
-    backgroundColor: '#1C151B',
+    borderColor: '#F43F5E',
+    backgroundColor: '#221518',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -639,18 +674,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
   },
   cardSubtitleText: {
-    color: '#64748B',
+    color: '#A8B5B0',
     fontSize: 11,
     marginTop: 2,
   },
   cardHeaderExtra: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -662,21 +697,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   smallFilterPillActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#38BDF8',
+    backgroundColor: '#2ED3A3',
+    borderColor: '#2ED3A3',
   },
   smallFilterText: {
-    color: '#64748B',
+    color: '#A8B5B0',
     fontSize: 10,
     fontWeight: '700',
   },
   smallFilterTextActive: {
-    color: '#FFFFFF',
+    color: '#101A17',
+    fontWeight: '800',
   },
   timerCircle: {
     alignItems: 'center',
@@ -685,26 +721,26 @@ const styles = StyleSheet.create({
   timerValue: {
     fontSize: 44,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#84E150',
     letterSpacing: 2,
     fontFamily: 'monospace',
   },
   timerLockedValue: {
-    color: '#EF4444',
+    color: '#F43F5E',
   },
   timerPerAppAlert: {
     color: '#F59E0B',
     fontSize: 32,
   },
   timerLabel: {
-    color: '#64748B',
+    color: '#A8B5B0',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
     marginTop: 4,
   },
   perAppSubtitle: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 17,
@@ -713,7 +749,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     height: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 4,
     overflow: 'hidden',
     marginVertical: 16,
@@ -726,7 +762,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#2C2C2C',
     paddingTop: 16,
   },
   statCol: {
@@ -735,16 +771,16 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 2,
   },
   lockNoticeBox: {
     flexDirection: 'row',
-    backgroundColor: '#450A0A',
+    backgroundColor: '#2B1419',
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
@@ -756,11 +792,11 @@ const styles = StyleSheet.create({
   lockNoticeTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#EF4444',
+    color: '#F43F5E',
   },
   lockNoticeBody: {
     fontSize: 12,
-    color: '#FCA5A5',
+    color: '#FDA4AF',
     marginTop: 2,
     lineHeight: 16,
   },
@@ -769,37 +805,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#2ED3A3',
     paddingVertical: 14,
     borderRadius: 12,
     marginBottom: 16,
   },
   graceButtonDisabled: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E1E1E',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   graceButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
     fontSize: 13,
   },
   graceButtonDisabledText: {
-    color: '#64748B',
+    color: '#6E7A75',
   },
   appList: {
     gap: 10,
   },
   appCardRow: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#181818',
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   appCardRowDisabled: {
-    opacity: 0.75,
-    backgroundColor: '#090D16',
+    opacity: 0.72,
+    backgroundColor: '#141414',
   },
   appRowTop: {
     flexDirection: 'row',
@@ -818,32 +854,32 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
   appIconCircleMuted: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1E1E1E',
   },
   appIconLetter: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontWeight: '800',
     fontSize: 15,
   },
   appIconLetterMuted: {
-    color: '#64748B',
+    color: '#6E7A75',
   },
   appName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   appNameMuted: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   appPkg: {
     fontSize: 10,
-    color: '#64748B',
+    color: '#6E7A75',
   },
   toggleCell: {
     marginLeft: 8,
@@ -854,41 +890,45 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   appStatusBadgeOpen: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
+    borderWidth: 1,
+    borderColor: '#1F5E4C',
   },
   appStatusBadgeLocked: {
     backgroundColor: '#7F1D1D',
   },
   appStatusBadgeTimed: {
-    backgroundColor: '#0C4A6E',
+    backgroundColor: '#102822',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1F5E4C',
   },
   appStatusBadgeExempt: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#262626',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   appStatusText: {
-    color: '#FFFFFF',
+    color: '#2ED3A3',
     fontSize: 9,
     fontWeight: '800',
   },
   appStatusTimedText: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontSize: 9,
     fontWeight: '800',
   },
   appStatusExemptText: {
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontSize: 9,
     fontWeight: '700',
   },
   miniProgressContainer: {
     height: 4,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#141414',
     borderRadius: 2,
     overflow: 'hidden',
     marginTop: 8,
@@ -898,7 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   emptyText: {
-    color: '#64748B',
+    color: '#6E7A75',
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: 12,
@@ -907,17 +947,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginTop: 10,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#059669',
+    borderColor: '#1F5E4C',
   },
   positiveRedirectDashText: {
-    color: '#34D399',
+    color: '#84E150',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -925,9 +965,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#1E1B4B',
+    backgroundColor: '#181730',
     borderWidth: 1,
-    borderColor: '#4338CA',
+    borderColor: '#3730A3',
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,

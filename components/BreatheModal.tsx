@@ -78,7 +78,7 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>
-            <MaterialIcons name="air" size={14} color="#10B981" />
+            <MaterialIcons name="air" size={14} color="#2ED3A3" />
             <Text style={styles.badgeText}>MINDFUL MICRO-INTERVENTION</Text>
           </View>
 
@@ -103,7 +103,7 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
 
           {/* Action Buttons */}
           <TouchableOpacity style={styles.closeAppButton} onPress={onClose}>
-            <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+            <MaterialIcons name="check-circle" size={18} color="#101A17" />
             <Text style={styles.closeAppText}>I'll Skip It (Behavioral Win!)</Text>
           </TouchableOpacity>
 
@@ -131,16 +131,16 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 8, 15, 0.92)',
+    backgroundColor: 'rgba(10, 12, 11, 0.94)',
     justifyContent: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
     alignItems: 'center',
   },
   badgeRow: {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badgeText: {
-    color: '#10B981',
+    color: '#2ED3A3',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 24,
@@ -178,21 +178,21 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
     borderWidth: 3,
-    borderColor: '#10B981',
+    borderColor: '#2ED3A3',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
   },
   phaseLabel: {
-    color: '#A7F3D0',
+    color: '#A8B5B0',
     fontSize: 11,
     fontWeight: '700',
     marginBottom: 4,
   },
   timerValue: {
-    color: '#FFFFFF',
+    color: '#84E150',
     fontSize: 28,
     fontWeight: '900',
   },
@@ -202,34 +202,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     width: '100%',
-    backgroundColor: '#059669',
+    backgroundColor: '#2ED3A3',
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 10,
   },
   closeAppText: {
-    color: '#FFFFFF',
+    color: '#101A17',
     fontWeight: '800',
     fontSize: 14,
   },
   proceedButton: {
     width: '100%',
     paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    backgroundColor: '#262626',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   proceedButtonDisabled: {
     opacity: 0.5,
   },
   proceedText: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontWeight: '700',
     fontSize: 13,
   },
   proceedTextDisabled: {
-    color: '#64748B',
+    color: '#6E7A75',
   },
 });

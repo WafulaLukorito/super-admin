@@ -249,7 +249,7 @@ export default function RulesScreen() {
 
         {/* Battery Sleep Status Card */}
         <View style={styles.batteryCard}>
-          <MaterialIcons name="battery-charging-full" size={20} color="#10B981" />
+          <MaterialIcons name="battery-charging-full" size={20} color="#84E150" />
           <View style={{ flex: 1 }}>
             <Text style={styles.batteryTitle}>Battery Sleep Engine Active</Text>
             <Text style={styles.batterySubtitle}>
@@ -271,14 +271,14 @@ export default function RulesScreen() {
               <TouchableOpacity
                 style={styles.resetProfilesBtn}
                 onPress={handleResetProfiles}>
-                <MaterialIcons name="restore" size={14} color="#94A3B8" />
+                <MaterialIcons name="restore" size={14} color="#A8B5B0" />
                 <Text style={styles.resetProfilesBtnText}>Defaults</Text>
               </TouchableOpacity>
               <Switch
                 value={state.profilesEnabled}
                 onValueChange={handleToggleProfilesEnabled}
-                trackColor={{ false: '#334155', true: '#0284C7' }}
-                thumbColor={state.profilesEnabled ? '#38BDF8' : '#64748B'}
+                trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
+                thumbColor={state.profilesEnabled ? '#2ED3A3' : '#6E7A75'}
               />
             </View>
           </View>
@@ -315,8 +315,8 @@ export default function RulesScreen() {
                           size={20}
                           color={
                             isActiveNow
-                              ? (isBedtime ? '#818CF8' : '#38BDF8')
-                              : (profile.enabled ? '#CBD5E1' : '#64748B')
+                              ? (isBedtime ? '#C7D2FE' : '#101A17')
+                              : (profile.enabled ? '#2ED3A3' : '#6E7A75')
                           }
                         />
                       </View>
@@ -339,27 +339,27 @@ export default function RulesScreen() {
                     <Switch
                       value={profile.enabled}
                       onValueChange={() => handleToggleProfile(profile.id)}
-                      trackColor={{ false: '#334155', true: isBedtime ? '#4338CA' : '#0284C7' }}
-                      thumbColor={profile.enabled ? (isBedtime ? '#818CF8' : '#38BDF8') : '#64748B'}
+                      trackColor={{ false: '#2C2C2C', true: isBedtime ? '#4338CA' : '#1F5E4C' }}
+                      thumbColor={profile.enabled ? (isBedtime ? '#818CF8' : '#2ED3A3') : '#6E7A75'}
                     />
                   </View>
 
                   {/* Summary Bar */}
                   <View style={styles.profileSummaryRow}>
                     <View style={styles.profileSummaryItem}>
-                      <MaterialIcons name="schedule" size={13} color="#94A3B8" />
+                      <MaterialIcons name="schedule" size={13} color="#A8B5B0" />
                       <Text style={styles.profileSummaryText}>
                         {formatProfileTime(profile.startHour, profile.startMinute)} – {formatProfileTime(profile.endHour, profile.endMinute)}
                       </Text>
                     </View>
                     <View style={styles.profileSummaryItem}>
-                      <MaterialIcons name="timelapse" size={13} color="#94A3B8" />
+                      <MaterialIcons name="timelapse" size={13} color="#A8B5B0" />
                       <Text style={styles.profileSummaryText}>
                         {profile.allowanceMinutes === 0 ? '0m Hard Lock' : `${profile.allowanceMinutes}m / ${profile.windowMinutes}m`}
                       </Text>
                     </View>
                     <View style={styles.profileSummaryItem}>
-                      <MaterialIcons name="security" size={13} color="#94A3B8" />
+                      <MaterialIcons name="security" size={13} color="#A8B5B0" />
                       <Text style={styles.profileSummaryText}>
                         {profile.strictnessOverride.toUpperCase()}
                       </Text>
@@ -376,7 +376,7 @@ export default function RulesScreen() {
                     <MaterialIcons
                       name={isExpanded ? 'expand-less' : 'expand-more'}
                       size={18}
-                      color="#38BDF8"
+                      color="#2ED3A3"
                     />
                   </TouchableOpacity>
 
@@ -518,7 +518,7 @@ export default function RulesScreen() {
           </View>
           {state.profilesEnabled && state.activeProfileId && (
             <View style={styles.activeProfileNotice}>
-              <MaterialIcons name="auto-awesome" size={14} color="#38BDF8" />
+              <MaterialIcons name="auto-awesome" size={14} color="#84E150" />
               <Text style={styles.activeProfileNoticeText}>
                 Smart Profile active ({state.timeProfiles.find((p) => p.id === state.activeProfileId)?.name || 'Profile'}). Below settings apply during Off-Peak baseline hours.
               </Text>
@@ -536,7 +536,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="schedule"
                   size={20}
-                  color={is1hPreset ? '#38BDF8' : '#64748B'}
+                  color={is1hPreset ? '#2ED3A3' : '#6E7A75'}
                 />
                 <View style={[styles.presetTag, is1hPreset && styles.presetTagActive]}>
                   <Text style={[styles.presetTagText, is1hPreset && styles.presetTagTextActive]}>
@@ -557,7 +557,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="hourglass-bottom"
                   size={20}
-                  color={is2hPreset ? '#38BDF8' : '#64748B'}
+                  color={is2hPreset ? '#2ED3A3' : '#6E7A75'}
                 />
                 <View style={[styles.presetTag, is2hPreset && styles.presetTagActive]}>
                   <Text style={[styles.presetTagText, is2hPreset && styles.presetTagTextActive]}>
@@ -578,7 +578,7 @@ export default function RulesScreen() {
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardSection}>ENFORCEMENT MODE</Text>
             <View style={[styles.currentBadge, state.trackingMode === 'per_app' ? styles.modeBadgePerApp : styles.modeBadgeCumul]}>
-              <Text style={styles.currentBadgeText}>
+              <Text style={[styles.currentBadgeText, state.trackingMode === 'per_app' && { color: '#84E150' }]}>
                 {state.trackingMode === 'per_app' ? 'PER-APP ISOLATED' : 'CUMULATIVE POOL'}
               </Text>
             </View>
@@ -599,7 +599,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="layers"
                   size={20}
-                  color={state.trackingMode === 'cumulative' ? '#38BDF8' : '#94A3B8'}
+                  color={state.trackingMode === 'cumulative' ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Cumulative Shared Pool</Text>
               </View>
@@ -624,7 +624,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="splitscreen"
                   size={20}
-                  color={state.trackingMode === 'per_app' ? '#38BDF8' : '#94A3B8'}
+                  color={state.trackingMode === 'per_app' ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Per-App Separate Timers</Text>
               </View>
@@ -651,7 +651,15 @@ export default function RulesScreen() {
                   ? styles.modeBadgeDisciplined
                   : styles.modeBadgeCumul,
               ]}>
-              <Text style={styles.currentBadgeText}>
+              <Text
+                style={[
+                  styles.currentBadgeText,
+                  state.strictnessLevel === 'fortress'
+                    ? { color: '#F43F5E' }
+                    : state.strictnessLevel === 'disciplined'
+                    ? { color: '#84E150' }
+                    : null,
+                ]}>
                 {state.strictnessLevel === 'fortress'
                   ? 'FORTRESS (LVL 3)'
                   : state.strictnessLevel === 'disciplined'
@@ -676,7 +684,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="self-improvement"
                   size={20}
-                  color={state.strictnessLevel === 'mindful' ? '#38BDF8' : '#94A3B8'}
+                  color={state.strictnessLevel === 'mindful' ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Level 1: Mindful (Standard)</Text>
               </View>
@@ -701,7 +709,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="security"
                   size={20}
-                  color={state.strictnessLevel === 'disciplined' ? '#38BDF8' : '#94A3B8'}
+                  color={state.strictnessLevel === 'disciplined' ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Level 2: Disciplined (Enforced)</Text>
               </View>
@@ -726,7 +734,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="shield"
                   size={20}
-                  color={state.strictnessLevel === 'fortress' ? '#F43F5E' : '#94A3B8'}
+                  color={state.strictnessLevel === 'fortress' ? '#F43F5E' : '#A8B5B0'}
                 />
                 <Text style={[styles.modeCardTitle, state.strictnessLevel === 'fortress' && { color: '#F43F5E' }]}>
                   Level 3: Fortress (Hardcore Hourglass)
@@ -768,7 +776,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="bolt"
                   size={20}
-                  color={!state.frictionEnabled ? '#38BDF8' : '#94A3B8'}
+                  color={!state.frictionEnabled ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Instant Extension (No Friction)</Text>
               </View>
@@ -793,7 +801,7 @@ export default function RulesScreen() {
                 <MaterialIcons
                   name="psychology"
                   size={20}
-                  color={state.frictionEnabled ? '#38BDF8' : '#94A3B8'}
+                  color={state.frictionEnabled ? '#2ED3A3' : '#A8B5B0'}
                 />
                 <Text style={styles.modeCardTitle}>Cognitive Friction Gate</Text>
               </View>
@@ -817,7 +825,7 @@ export default function RulesScreen() {
                   <MaterialIcons
                     name="calculate"
                     size={16}
-                    color={state.frictionType === 'math' ? '#FFFFFF' : '#64748B'}
+                    color={state.frictionType === 'math' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'math' && styles.challengeTypeBtnTextActive]}>
                     Math Problem
@@ -830,7 +838,7 @@ export default function RulesScreen() {
                   <MaterialIcons
                     name="edit-note"
                     size={16}
-                    color={state.frictionType === 'pledge' ? '#FFFFFF' : '#64748B'}
+                    color={state.frictionType === 'pledge' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'pledge' && styles.challengeTypeBtnTextActive]}>
                     Mindful Pledge
@@ -843,7 +851,7 @@ export default function RulesScreen() {
                   <MaterialIcons
                     name="psychology"
                     size={16}
-                    color={state.frictionType === 'memory' ? '#FFFFFF' : '#64748B'}
+                    color={state.frictionType === 'memory' ? '#101A17' : '#A8B5B0'}
                   />
                   <Text style={[styles.challengeTypeBtnText, state.frictionType === 'memory' && styles.challengeTypeBtnTextActive]}>
                     Reverse Recall
@@ -874,7 +882,7 @@ export default function RulesScreen() {
                             <Text style={[styles.difficultyOptionTitle, isActive && styles.difficultyOptionTitleActive]}>
                               {d.toUpperCase()}
                             </Text>
-                            {isActive && <MaterialIcons name="check" size={14} color="#38BDF8" />}
+                            {isActive && <MaterialIcons name="check" size={14} color="#2ED3A3" />}
                           </View>
                           <Text style={styles.difficultyOptionDesc}>{subtitle}</Text>
                         </TouchableOpacity>
@@ -903,7 +911,7 @@ export default function RulesScreen() {
           <View style={styles.behavioralRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <MaterialIcons name="air" size={18} color="#10B981" />
+                <MaterialIcons name="air" size={18} color="#2ED3A3" />
                 <Text style={styles.behavioralTitle}>Breathe Before Scroll</Text>
               </View>
               <Text style={styles.behavioralDesc}>
@@ -913,8 +921,8 @@ export default function RulesScreen() {
             <Switch
               value={state.breatheEnabled}
               onValueChange={handleToggleBreathe}
-              trackColor={{ false: '#334155', true: '#059669' }}
-              thumbColor={state.breatheEnabled ? '#10B981' : '#64748B'}
+              trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
+              thumbColor={state.breatheEnabled ? '#2ED3A3' : '#6E7A75'}
             />
           </View>
 
@@ -922,7 +930,7 @@ export default function RulesScreen() {
             <TouchableOpacity
               style={styles.previewBreatheBtn}
               onPress={() => setBreatheModalVisible(true)}>
-              <MaterialIcons name="play-circle-filled" size={16} color="#34D399" />
+              <MaterialIcons name="play-circle-filled" size={16} color="#84E150" />
               <Text style={styles.previewBreatheText}>Preview 10s Breathwork Circle</Text>
             </TouchableOpacity>
           )}
@@ -939,7 +947,7 @@ export default function RulesScreen() {
                 { name: 'Amazon Kindle', pkg: 'com.amazon.kindle', icon: 'menu-book' },
                 { name: 'Google Keep Notes', pkg: 'com.google.android.keep', icon: 'edit-note' },
                 { name: 'Duolingo', pkg: 'com.duolingo', icon: 'school' },
-                { name: 'Focus Timer', pkg: 'com.jowaljones.superadmin', icon: 'timer' },
+                { name: 'Hourglass Timer', pkg: 'com.jowaljones.superadmin', icon: 'hourglass-bottom' },
               ].map((item) => {
                 const isSelected = state.positiveRedirectPackage === item.pkg;
                 return (
@@ -950,12 +958,12 @@ export default function RulesScreen() {
                     <MaterialIcons
                       name={item.icon as any}
                       size={18}
-                      color={isSelected ? '#38BDF8' : '#64748B'}
+                      color={isSelected ? '#2ED3A3' : '#A8B5B0'}
                     />
                     <Text style={[styles.replacementTileText, isSelected && styles.replacementTileTextActive]}>
                       {item.name}
                     </Text>
-                    {isSelected && <MaterialIcons name="check" size={14} color="#38BDF8" />}
+                    {isSelected && <MaterialIcons name="check" size={14} color="#84E150" />}
                   </TouchableOpacity>
                 );
               })}
@@ -975,10 +983,10 @@ export default function RulesScreen() {
               onPress={handleScanApps}
               disabled={isScanning}>
               {isScanning ? (
-                <ActivityIndicator size="small" color="#38BDF8" />
+                <ActivityIndicator size="small" color="#2ED3A3" />
               ) : (
                 <>
-                  <MaterialIcons name="refresh" size={16} color="#38BDF8" />
+                  <MaterialIcons name="refresh" size={16} color="#2ED3A3" />
                   <Text style={styles.scanButtonText}>Scan Apps</Text>
                 </>
               )}
@@ -987,11 +995,11 @@ export default function RulesScreen() {
 
           {/* Search Box */}
           <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={18} color="#64748B" />
+            <MaterialIcons name="search" size={18} color="#6E7A75" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search apps by name or package..."
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#6E7A75"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -1066,8 +1074,8 @@ export default function RulesScreen() {
                 <Switch
                   value={app.blocked}
                   onValueChange={() => handleToggleApp(app.id)}
-                  trackColor={{ false: '#334155', true: '#0284C7' }}
-                  thumbColor={app.blocked ? '#38BDF8' : '#64748B'}
+                  trackColor={{ false: '#2C2C2C', true: '#1F5E4C' }}
+                  thumbColor={app.blocked ? '#2ED3A3' : '#6E7A75'}
                 />
               </View>
             ))}
@@ -1087,19 +1095,19 @@ export default function RulesScreen() {
           <TextInput
             style={styles.input}
             placeholder="App Name (e.g. Threads)"
-            placeholderTextColor="#64748B"
+            placeholderTextColor="#6E7A75"
             value={newAppName}
             onChangeText={setNewAppName}
           />
           <TextInput
             style={styles.input}
             placeholder="Package Identifier (e.g. com.instagram.barcelona)"
-            placeholderTextColor="#64748B"
+            placeholderTextColor="#6E7A75"
             value={newPkgName}
             onChangeText={setNewPkgName}
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddCustomApp}>
-            <MaterialIcons name="add" size={18} color="#FFFFFF" />
+            <MaterialIcons name="add" size={18} color="#101A17" />
             <Text style={styles.addButtonText}>Add Guarded Package</Text>
           </TouchableOpacity>
         </View>
@@ -1118,7 +1126,7 @@ export default function RulesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#141414',
   },
   scrollContent: {
     padding: 20,
@@ -1131,43 +1139,43 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 2,
   },
   batteryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#059669',
+    borderColor: '#1F5E4C',
   },
   batteryTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#34D399',
+    color: '#2ED3A3',
   },
   batterySubtitle: {
     fontSize: 11,
-    color: '#A7F3D0',
+    color: '#A8B5B0',
     marginTop: 2,
     lineHeight: 15,
   },
   card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -1178,31 +1186,31 @@ const styles = StyleSheet.create({
   cardSection: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#2ED3A3',
     letterSpacing: 1,
   },
   cardExplainer: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginBottom: 14,
     lineHeight: 17,
   },
   currentBadge: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0284C7',
+    borderColor: '#1F5E4C',
   },
   modeBadgePerApp: {
-    borderColor: '#A855F7',
+    borderColor: '#3C6E23',
   },
   modeBadgeCumul: {
-    borderColor: '#38BDF8',
+    borderColor: '#2ED3A3',
   },
   currentBadgeText: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -1213,15 +1221,15 @@ const styles = StyleSheet.create({
   },
   presetCard: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   presetCardActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
   },
   presetTop: {
     flexDirection: 'row',
@@ -1230,44 +1238,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   presetTag: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   presetTagActive: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#84E150',
   },
   presetTagText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   presetTagTextActive: {
-    color: '#FFFFFF',
+    color: '#101A17',
   },
   presetName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   presetDetail: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     lineHeight: 15,
   },
   modeCard: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
     marginBottom: 10,
   },
   modeCardActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
   },
   modeCardHeader: {
     flexDirection: 'row',
@@ -1283,11 +1291,11 @@ const styles = StyleSheet.create({
   modeCardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   modeCardDesc: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     lineHeight: 16,
   },
   radioCircle: {
@@ -1295,22 +1303,22 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#64748B',
+    borderColor: '#6E7A75',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioCircleActive: {
-    borderColor: '#38BDF8',
+    borderColor: '#2ED3A3',
   },
   radioDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#84E150',
   },
   cardCounter: {
     fontSize: 11,
-    color: '#38BDF8',
+    color: '#84E150',
     marginTop: 2,
     fontWeight: '600',
   },
@@ -1318,26 +1326,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0284C7',
+    borderColor: '#1F5E4C',
   },
   scanButtonText: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontSize: 11,
     fontWeight: '700',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
     marginBottom: 12,
   },
   searchInput: {
@@ -1356,22 +1364,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   filterPillActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#38BDF8',
+    backgroundColor: '#2ED3A3',
+    borderColor: '#2ED3A3',
   },
   filterText: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     fontWeight: '600',
   },
   filterTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
   },
   appList: {
     gap: 12,
@@ -1390,23 +1398,23 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
   appIconLetter: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontWeight: '800',
     fontSize: 15,
   },
   appName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   appPkg: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#6E7A75',
   },
   perAppBadge: {
     paddingHorizontal: 6,
@@ -1417,7 +1425,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#7F1D1D',
   },
   perAppBadgeActive: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
+    borderWidth: 1,
+    borderColor: '#1F5E4C',
   },
   perAppBadgeText: {
     fontSize: 9,
@@ -1425,18 +1435,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   appStatusBadgeTimed: {
-    backgroundColor: '#0C4A6E',
+    backgroundColor: '#102822',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1F5E4C',
   },
   appStatusTimedText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#38BDF8',
+    color: '#2ED3A3',
   },
   appStatusBadgeExempt: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1444,22 +1456,22 @@ const styles = StyleSheet.create({
   appStatusExemptText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#A8B5B0',
   },
   emptyText: {
-    color: '#64748B',
+    color: '#6E7A75',
     textAlign: 'center',
     paddingVertical: 16,
     fontSize: 12,
   },
   input: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 8,
     padding: 12,
     color: '#FFFFFF',
     fontSize: 13,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
     marginBottom: 10,
   },
   addButton: {
@@ -1467,31 +1479,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0284C7',
+    backgroundColor: '#2ED3A3',
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 4,
   },
   addButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
     fontSize: 13,
   },
   currentBadgeDirect: {
-    borderColor: '#10B981',
+    borderColor: '#84E150',
   },
   frictionSubCard: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
     marginTop: 6,
   },
   frictionSubSection: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#2ED3A3',
     letterSpacing: 0.8,
     marginBottom: 8,
   },
@@ -1505,39 +1517,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   challengeTypeBtnActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#38BDF8',
+    backgroundColor: '#2ED3A3',
+    borderColor: '#2ED3A3',
   },
   challengeTypeBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   challengeTypeBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
   },
   difficultyCardsRow: {
     flexDirection: 'column',
     gap: 6,
   },
   difficultyOptionCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E1E1E',
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   difficultyOptionCardActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
   },
   difficultyOptionTop: {
     flexDirection: 'row',
@@ -1548,25 +1560,25 @@ const styles = StyleSheet.create({
   difficultyOptionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#A8B5B0',
     letterSpacing: 0.5,
   },
   difficultyOptionTitleActive: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
   },
   difficultyOptionDesc: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
   },
   modeBadgeFortress: {
     borderColor: '#F43F5E',
   },
   modeBadgeDisciplined: {
-    borderColor: '#A855F7',
+    borderColor: '#84E150',
   },
   modeCardActiveFortress: {
     borderColor: '#F43F5E',
-    backgroundColor: '#1E101D',
+    backgroundColor: '#2B1419',
   },
   radioCircleActiveFortress: {
     borderColor: '#F43F5E',
@@ -1577,16 +1589,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#2C2C2C',
   },
   behavioralTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   behavioralDesc: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     lineHeight: 16,
     marginTop: 2,
   },
@@ -1594,19 +1606,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#064E3B',
+    backgroundColor: '#102822',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#059669',
+    borderColor: '#1F5E4C',
     marginTop: 10,
     alignSelf: 'flex-start',
   },
   previewBreatheText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#34D399',
+    color: '#84E150',
   },
   replacementGrid: {
     flexDirection: 'column',
@@ -1617,62 +1629,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   replacementTileActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
   },
   replacementTileText: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#A8B5B0',
     marginLeft: 10,
   },
   replacementTileTextActive: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   profileMasterSub: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 2,
   },
   resetProfilesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   resetProfilesBtnText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     fontWeight: '600',
   },
   profileCard: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   profileCardActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0B233E',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#102822',
   },
   profileCardActiveBedtime: {
     borderColor: '#818CF8',
-    backgroundColor: '#1E1B4B',
+    backgroundColor: '#181730',
   },
   profileCardDisabled: {
     opacity: 0.5,
@@ -1691,13 +1703,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   profileIconWrapActive: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#2ED3A3',
   },
   profileIconWrapBedtime: {
     backgroundColor: '#4338CA',
@@ -1705,18 +1717,18 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   profileNameDisabled: {
-    color: '#64748B',
+    color: '#6E7A75',
   },
   profileTagText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     marginTop: 2,
   },
   activePill: {
-    backgroundColor: '#0369A1',
+    backgroundColor: '#84E150',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1727,17 +1739,17 @@ const styles = StyleSheet.create({
   activePillText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#38BDF8',
+    color: '#101A17',
     letterSpacing: 0.5,
   },
   activePillTextBedtime: {
-    color: '#818CF8',
+    color: '#C7D2FE',
   },
   profileSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -1750,7 +1762,7 @@ const styles = StyleSheet.create({
   },
   profileSummaryText: {
     fontSize: 11,
-    color: '#CBD5E1',
+    color: '#C8D3CF',
     fontWeight: '600',
   },
   customizeToggleBtn: {
@@ -1764,11 +1776,11 @@ const styles = StyleSheet.create({
   customizeToggleBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#38BDF8',
+    color: '#2ED3A3',
   },
   profileEditArea: {
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
+    borderTopColor: '#2C2C2C',
     paddingTop: 10,
     marginTop: 4,
     gap: 8,
@@ -1776,7 +1788,7 @@ const styles = StyleSheet.create({
   editSectionTitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: '#A8B5B0',
     letterSpacing: 0.5,
     marginTop: 4,
   },
@@ -1786,14 +1798,14 @@ const styles = StyleSheet.create({
   },
   stepperBox: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     borderRadius: 8,
     padding: 8,
   },
   stepperLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#A8B5B0',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -1806,14 +1818,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 6,
-    backgroundColor: '#334155',
+    backgroundColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   chipsRow: {
     flexDirection: 'row',
@@ -1821,16 +1833,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   chipActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#0369A1',
+    borderColor: '#2ED3A3',
+    backgroundColor: '#2ED3A3',
   },
   chipActiveFortress: {
     borderColor: '#F43F5E',
@@ -1839,11 +1851,11 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#A8B5B0',
   },
   chipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#101A17',
+    fontWeight: '800',
   },
   chipTextActiveFortress: {
     color: '#FFFFFF',
@@ -1853,16 +1865,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0B233E',
+    backgroundColor: '#1B2B14',
     borderWidth: 1,
-    borderColor: '#0284C7',
+    borderColor: '#3C6E23',
     borderRadius: 8,
     padding: 8,
     marginBottom: 10,
   },
   activeProfileNoticeText: {
     fontSize: 11,
-    color: '#38BDF8',
+    color: '#84E150',
     fontWeight: '600',
     flex: 1,
   },

@@ -51,7 +51,7 @@ export default function PermissionsScreen() {
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name="insights" size={20} color="#38BDF8" />
+              <MaterialIcons name="insights" size={20} color="#2ED3A3" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>1. Usage Stats Access</Text>
@@ -61,7 +61,7 @@ export default function PermissionsScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenUsage}>
-            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
             <Text style={styles.actionButtonText}>Open Usage Access Settings</Text>
           </TouchableOpacity>
         </View>
@@ -80,7 +80,7 @@ export default function PermissionsScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenOverlay}>
-            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
             <Text style={styles.actionButtonText}>Open Overlay Permissions</Text>
           </TouchableOpacity>
         </View>
@@ -89,7 +89,7 @@ export default function PermissionsScreen() {
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name="battery-alert" size={20} color="#10B981" />
+              <MaterialIcons name="battery-alert" size={20} color="#84E150" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>3. Battery Optimization Exemption</Text>
@@ -99,7 +99,7 @@ export default function PermissionsScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenBattery}>
-            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
             <Text style={styles.actionButtonText}>Exempt from Battery Optimization</Text>
           </TouchableOpacity>
         </View>
@@ -108,7 +108,7 @@ export default function PermissionsScreen() {
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name="notifications" size={20} color="#A78BFA" />
+              <MaterialIcons name="notifications" size={20} color="#818CF8" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.permName}>4. Foreground Notifications</Text>
@@ -118,7 +118,7 @@ export default function PermissionsScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenNotifications}>
-            <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
+            <MaterialIcons name="open-in-new" size={16} color="#2ED3A3" />
             <Text style={styles.actionButtonText}>Configure App Notifications</Text>
           </TouchableOpacity>
         </View>
@@ -126,7 +126,7 @@ export default function PermissionsScreen() {
         {/* Permission 5: Accessibility Service (Fortress Tier) */}
         <View style={styles.card}>
           <View style={styles.cardTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#1E101D' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: '#2B1419' }]}>
               <MaterialIcons name="bolt" size={20} color="#F43F5E" />
             </View>
             <View style={{ flex: 1 }}>
@@ -136,16 +136,16 @@ export default function PermissionsScreen() {
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#E11D48' }]} onPress={handleOpenAccessibility}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#E11D48', borderColor: '#F43F5E' }]} onPress={handleOpenAccessibility}>
             <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Open Accessibility Settings</Text>
+            <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Open Accessibility Settings</Text>
           </TouchableOpacity>
         </View>
 
         {/* Permission 6: Device Administrator (Fortress Tier) */}
         <View style={styles.card}>
           <View style={styles.cardTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#1E101D' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: '#2B1419' }]}>
               <MaterialIcons name="admin-panel-settings" size={20} color="#F43F5E" />
             </View>
             <View style={{ flex: 1 }}>
@@ -155,15 +155,15 @@ export default function PermissionsScreen() {
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#BE123C' }]} onPress={handleRequestDeviceAdmin}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#BE123C', borderColor: '#F43F5E' }]} onPress={handleRequestDeviceAdmin}>
             <MaterialIcons name="open-in-new" size={16} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Activate Device Administrator</Text>
+            <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Activate Device Administrator</Text>
           </TouchableOpacity>
         </View>
 
         {/* Anti-Tamper Verification Card */}
         <View style={styles.infoBox}>
-          <MaterialIcons name="verified-user" size={22} color="#10B981" />
+          <MaterialIcons name="verified-user" size={22} color="#2ED3A3" />
           <View style={{ flex: 1 }}>
             <Text style={styles.infoTitle}>Anti-Tamper Hardware Clock Lock</Text>
             <Text style={styles.infoBody}>
@@ -180,7 +180,7 @@ export default function PermissionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: '#141414',
   },
   scrollContent: {
     padding: 20,
@@ -193,22 +193,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     letterSpacing: 1.2,
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#A8B5B0',
     marginTop: 4,
     lineHeight: 18,
   },
   card: {
-    backgroundColor: '#131C2E',
+    backgroundColor: '#1E1E1E',
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#2C2C2C',
   },
   cardTop: {
     flexDirection: 'row',
@@ -219,19 +219,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141414',
     alignItems: 'center',
     justifyContent: 'center',
   },
   permName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   permDesc: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#A8B5B0',
     lineHeight: 16,
   },
   actionButton: {
@@ -239,36 +239,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#262626',
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2C2C2C',
   },
   actionButtonText: {
-    color: '#38BDF8',
+    color: '#2ED3A3',
     fontWeight: '700',
     fontSize: 12,
   },
   infoBox: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: '#0B233E',
+    backgroundColor: '#102822',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#0284C7',
+    borderColor: '#1F5E4C',
     marginTop: 8,
   },
   infoTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#38BDF8',
+    color: '#2ED3A3',
     marginBottom: 4,
   },
   infoBody: {
     fontSize: 12,
-    color: '#BAE6FD',
+    color: '#C8D3CF',
     lineHeight: 16,
   },
 });
