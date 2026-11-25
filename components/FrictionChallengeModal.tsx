@@ -196,13 +196,13 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.badge}>ANTI-IMPULSE FRICTION GATE</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeIconBtn}>
-              <MaterialIcons name="close" size={20} color="#94A3B8" />
+              <MaterialIcons name="close" size={20} color="#A8B5B0" />
             </TouchableOpacity>
           </View>
 
@@ -220,11 +220,11 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               }}>
               <MaterialIcons
                 name="calculate"
-                size={16}
+                size={15}
                 color={challengeType === 'math' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'math' && styles.activeTabText]}>
-                Math Challenge
+                Math
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -235,11 +235,11 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               }}>
               <MaterialIcons
                 name="edit-note"
-                size={16}
+                size={15}
                 color={challengeType === 'pledge' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'pledge' && styles.activeTabText]}>
-                Mindful Pledge
+                Pledge
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -251,11 +251,11 @@ export function FrictionChallengeModal({ visible, onClose, onSuccess }: Props) {
               }}>
               <MaterialIcons
                 name="psychology"
-                size={16}
+                size={15}
                 color={challengeType === 'memory' ? '#101A17' : '#A8B5B0'}
               />
               <Text style={[styles.tabText, challengeType === 'memory' && styles.activeTabText]}>
-                Reverse Recall
+                Recall
               </Text>
             </TouchableOpacity>
           </View>

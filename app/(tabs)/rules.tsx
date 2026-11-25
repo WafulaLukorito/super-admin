@@ -1287,11 +1287,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
+    paddingRight: 10,
   },
   modeCardTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   modeCardDesc: {
     fontSize: 11,

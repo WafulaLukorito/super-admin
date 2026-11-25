@@ -74,7 +74,7 @@ export function BreatheModal({ visible, onClose, appName = 'Guarded Apps', onPro
   }, [visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>

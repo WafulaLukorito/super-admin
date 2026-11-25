@@ -411,8 +411,8 @@ export default function DashboardScreen() {
 
         {/* App Timing Controls Card with Toggle after each App */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View>
+          <View style={styles.appTimingHeader}>
+            <View style={{ marginBottom: 10 }}>
               <Text style={styles.cardTitle}>APP TIMING CONTROLS</Text>
               <Text style={styles.cardSubtitleText}>
                 Toggle ON to include in timer. Toggle OFF to disable timing.
@@ -672,6 +672,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  appTimingHeader: {
+    marginBottom: 14,
   },
   cardTitle: {
     color: '#A8B5B0',

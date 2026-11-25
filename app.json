@@ -43,6 +43,15 @@
           "backgroundColor": "#141414"
         }
       ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/material.ttf",
+            "./assets/fonts/SpaceMono-Regular.ttf"
+          ]
+        }
+      ],
       "expo-asset"
     ],
     "experiments": {
